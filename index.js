@@ -27,33 +27,29 @@ app.post('/webhook', (req, res) => {
     // Создаем объект ответа TwiML
     const twiml = new twilio.twiml.MessagingResponse();
 
-    // Формируем обычное сообщение
-    twiml.message('Выберите одну из опций:');
-
-    // Для кнопок используем правильный формат Twilio для WhatsApp
+    // Создаем сообщение с кнопками
     const message = twiml.message();
-    message.body('Выберите опцию');
-    message.action({
-        type: 'interactive',
-        interactive: {
-            type: 'button',
-            buttons: [
-                {
-                    type: 'reply',
-                    reply: {
-                        id: 'balance',
-                        title: 'Узнать баланс'
-                    }
-                },
-                {
-                    type: 'reply',
-                    reply: {
-                        id: 'help',
-                        title: 'Получить помощь'
-                    }
+    message.body('Выберите опцию:');
+    
+    // Добавление кнопок с правильной структурой
+    message.addInteractive({
+        type: 'button',
+        buttons: [
+            {
+                type: 'reply',
+                reply: {
+                    id: 'balance',
+                    title: 'Узнать баланс'
                 }
-            ]
-        }
+            },
+            {
+                type: 'reply',
+                reply: {
+                    id: 'help',
+                    title: 'Получить помощь'
+                }
+            }
+        ]
     });
 
     // Отправляем TwiML
