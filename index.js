@@ -16,83 +16,87 @@ app.post("/webhook", async (req, res) => {
   const waNumber = req.body.To;
   const message = req.body.Body?.trim();
   const payload = req.body.ButtonPayload;
-  const action = payload || message;
+  const action = (payload || message || "").toLowerCase(); // защищаем от undefined
 
   console.log("📦 Полный req.body:", req.body);
   console.log(`📩 Сообщение от ${from}: ${message}`);
   console.log(`🆔 Action: ${action}`);
 
-  if (!sessions[from]) {
-    sessions[from] = { step: "started" };
+  try {
+    if (!sessions[from]) {
+      sessions[from] = { step: "started" };
 
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      content: {
-        body: "Здравствуйте! Я Ваш помощник по продукции Peptides. Чем могу помочь?",
-        interactive: {
-          type: "button",
-          body: {
-            text: "Выберите один из вариантов:",
-          },
-          action: {
-            buttons: [
-              { type: "reply", reply: { id: "balance", title: "Узнать баланс бонусов" } },
-              { type: "reply", reply: { id: "catalog", title: "Каталог препаратов" } },
-              { type: "reply", reply: { id: "order", title: "Сделать заказ" } },
-              { type: "reply", reply: { id: "manager", title: "Связаться с менеджером" } }
-            ],
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        content: {
+          body: "Здравствуйте! Я Ваш помощник по продукции Peptides. Чем могу помочь?",
+          interactive: {
+            type: "button",
+            body: {
+              text: "Выберите один из вариантов:",
+            },
+            action: {
+              buttons: [
+                { type: "reply", reply: { id: "balance", title: "Узнать баланс бонусов" } },
+                { type: "reply", reply: { id: "catalog", title: "Каталог препаратов" } },
+                { type: "reply", reply: { id: "order", title: "Сделать заказ" } },
+                { type: "reply", reply: { id: "manager", title: "Связаться с менеджером" } }
+              ],
+            },
           },
         },
-      },
-    });
-
-    return res.sendStatus(200);
-  }
-
-  switch (action.toLowerCase()) {
-    case "balance":
-    case "узнать баланс бонусов":
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "ОК, сейчас проверю ваш бонусный баланс.",
       });
-      break;
 
-    case "catalog":
-    case "каталог препаратов":
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "Вот ссылка на каталог: https://peptides1.ru/catalog",
-      });
-      break;
+      return res.sendStatus(200);
+    }
 
-    case "order":
-    case "сделать заказ":
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "Пожалуйста, напишите название препарата, который вы хотите заказать.",
-      });
-      break;
+    switch (action) {
+      case "balance":
+      case "узнать баланс бонусов":
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "ОК, сейчас проверю ваш бонусный баланс.",
+        });
+        break;
 
-    case "manager":
-    case "связаться с менеджером":
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "Наш менеджер скоро свяжется с вами.",
-      });
-      break;
+      case "catalog":
+      case "каталог препаратов":
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "Вот ссылка на каталог: https://peptides1.ru/catalog",
+        });
+        break;
 
-    default:
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "Пожалуйста, выберите один из вариантов на кнопке.",
-      });
+      case "order":
+      case "сделать заказ":
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "Пожалуйста, напишите название препарата, который вы хотите заказать.",
+        });
+        break;
+
+      case "manager":
+      case "связаться с менеджером":
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "Наш менеджер скоро свяжется с вами.",
+        });
+        break;
+
+      default:
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "Пожалуйста, выберите один из вариантов на кнопке.",
+        });
+    }
+  } catch (error) {
+    console.error("❌ Ошибка при отправке сообщения:", error.message);
   }
 
   res.sendStatus(200);
