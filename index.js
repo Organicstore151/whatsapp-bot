@@ -1,63 +1,66 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const twilio = require('twilio');
+const { MessagingResponse } = require('twilio');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-// Обработка GET-запроса на корень
-app.get('/', (req, res) => {
-    res.send('Сервер работает. Ожидаю запросы на /webhook.');
-});
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 app.post('/webhook', (req, res) => {
-    console.log('Запрос от Twilio:', req.body);  // Логируем весь запрос
+    const twiml = new MessagingResponse();
 
-    // Получаем необходимые параметры из тела запроса
-    const { From, To, Body } = req.body;
+    // Получаем сообщение от пользователя
+    const body = req.body.Body.trim();
+    const from = req.body.From;
 
-    // Проверяем, что все обязательные параметры присутствуют
-    if (!From || !To || !Body) {
-        return res.status(400).send('Ошибка: не хватает обязательных параметров');
+    // Проверяем нажатие кнопки "Узнать баланс бонусов"
+    if (body.toLowerCase() === 'узнать баланс бонусов') {
+        const message = twiml.message();
+        message.body('Пожалуйста, введите ваш ID пользователя.');
+
+        // Преобразуем это в запрос для ввода ID
+        message.interactive({
+            type: 'button',
+            body: 'Введите ваш ID',
+            action: {
+                type: 'message',
+                message: 'Введите ID'
+            }
+        });
+
+    } else if (body.toLowerCase() === 'введите id') {
+        const message = twiml.message();
+        message.body('Теперь, пожалуйста, введите ваш пароль.');
+
+        // Преобразуем это в запрос для ввода пароля
+        message.interactive({
+            type: 'button',
+            body: 'Введите ваш пароль',
+            action: {
+                type: 'message',
+                message: 'Введите пароль'
+            }
+        });
+
+    } else if (body.toLowerCase() === 'введите пароль') {
+        const message = twiml.message();
+        message.body('Спасибо! Мы получим ваш баланс бонусов.');
+
+        // Здесь нужно отправить ID и пароль на сервер для получения бонусного баланса
+        // (например, через API, который ты настроил на старом личном кабинете)
+
+    } else {
+        const message = twiml.message();
+        message.body('Здравствуйте! Напишите "Узнать баланс бонусов", чтобы начать.');
     }
 
-    // Создаем объект ответа TwiML
-    const twiml = new twilio.twiml.MessagingResponse();
-
-    // Создаем сообщение с кнопками
-    const message = twiml.message();
-    message.body('Выберите опцию:');
-    
-    // Добавление кнопок с правильной структурой
-    message.addInteractive({
-        type: 'button',
-        buttons: [
-            {
-                type: 'reply',
-                reply: {
-                    id: 'balance',
-                    title: 'Узнать баланс'
-                }
-            },
-            {
-                type: 'reply',
-                reply: {
-                    id: 'help',
-                    title: 'Получить помощь'
-                }
-            }
-        ]
-    });
-
-    // Отправляем TwiML
     res.type('text/xml');
     res.send(twiml.toString());
 });
 
-// Запускаем сервер
 app.listen(port, () => {
     console.log(`Сервер запущен на http://localhost:${port}`);
 });
