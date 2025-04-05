@@ -12,17 +12,23 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const sessions = {};
 
 app.post("/webhook", async (req, res) => {
-  const from = req.body.From;
-  const waNumber = req.body.To;
-  const message = req.body.Body?.trim();
-  const payload = req.body.ButtonPayload;
-  const action = (payload || message || "").toLowerCase(); // защищаем от undefined
-
-  console.log("📦 Полный req.body:", req.body);
-  console.log(`📩 Сообщение от ${from}: ${message}`);
-  console.log(`🆔 Action: ${action}`);
-
   try {
+    console.log("📦 Полный req.body:", req.body);
+
+    const from = req.body.From;
+    const waNumber = req.body.To;
+    const message = req.body.Body?.trim();
+    const payload = req.body.ButtonPayload;
+    const action = (payload || message || "").toLowerCase();
+
+    console.log(`📩 Сообщение от ${from}: ${message}`);
+    console.log(`🆔 Action: ${action}`);
+
+    if (!from || !waNumber) {
+      console.error("❌ Не хватает параметров 'from' или 'to'");
+      return res.sendStatus(400);
+    }
+
     if (!sessions[from]) {
       sessions[from] = { step: "started" };
 
@@ -95,11 +101,12 @@ app.post("/webhook", async (req, res) => {
           body: "Пожалуйста, выберите один из вариантов на кнопке.",
         });
     }
-  } catch (error) {
-    console.error("❌ Ошибка при отправке сообщения:", error.message);
-  }
 
-  res.sendStatus(200);
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("❌ Ошибка при обработке запроса:", error.message);
+    res.sendStatus(500);
+  }
 });
 
 app.get("/", (req, res) => {
