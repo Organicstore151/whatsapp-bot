@@ -27,7 +27,7 @@ app.post("/webhook", async (req, res) => {
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
-    return res.sendStatus(200);
+    return res.status(200).send(); // Убираем "ОК", а просто отправляем пустой ответ с 200
   }
 
   const session = sessions[from];
@@ -92,10 +92,13 @@ app.post("/webhook", async (req, res) => {
     }
 
     delete sessions[from];
+
+    // Просто завершаем запрос без дополнительного "ОК"
+    return res.status(200).send();
   }
 
-  // Только статус — без текста, чтобы не было "ОК"
-  res.sendStatus(200);
+  // Убираем автоматический "ОК"
+  return res.status(200).send();
 });
 
 app.get("/", (req, res) => {
