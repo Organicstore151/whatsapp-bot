@@ -8,43 +8,96 @@ const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-// Проверка сервера
-app.get("/", (req, res) => {
-  res.send("✅ WhatsApp бот работает");
-});
+// Хранилище сессий
+const sessions = {};
 
-// Webhook Twilio
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
-  const body = req.body.Body;
+  const message = req.body.Body?.trim();
+  const waNumber = req.body.To;
 
-  console.log("📩 Входящее сообщение от:", from, "| Текст:", body);
+  console.log(`📩 Сообщение от ${from}: ${message}`);
 
-  try {
-    // Отправка шаблона
+  // Если это первое сообщение — отправляем приветствие с кнопками
+  if (!sessions[from]) {
+    sessions[from] = { step: "started" };
+
     await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER,
+      from: waNumber,
       to: from,
-      contentSid: process.env.TEMPLATE_SID
+      content: {
+        body: "Здравствуйте! Я Ваш помощник по продукции Peptides. Чем могу помочь?",
+        interactive: {
+          type: "button",
+          body: {
+            text: "Выберите один из вариантов:",
+          },
+          action: {
+            buttons: [
+              { type: "reply", reply: { id: "balance", title: "Узнать баланс бонусов" } },
+              { type: "reply", reply: { id: "catalog", title: "Каталог препаратов" } },
+              { type: "reply", reply: { id: "order", title: "Сделать заказ" } },
+              { type: "reply", reply: { id: "manager", title: "Связаться с менеджером" } }
+            ],
+          },
+        },
+      },
     });
 
-    console.log("✅ Шаблон отправлен");
-
-    // Не возвращаем никакой текст, чтобы избежать "OK"
-    res.status(204).end();
-  } catch (error) {
-    console.error("❌ Ошибка при отправке шаблона:", error);
-    res.status(500).send("Ошибка сервера");
+    return res.sendStatus(200);
   }
+
+  // Ответ на кнопку
+  switch (message) {
+    case "Узнать баланс бонусов":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "ОК, сейчас проверю ваш бонусный баланс.",
+      });
+      break;
+
+    case "Каталог препаратов":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Вот ссылка на каталог: https://peptides1.ru/catalog",
+      });
+      break;
+
+    case "Сделать заказ":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Пожалуйста, напишите название препарата, который вы хотите заказать.",
+      });
+      break;
+
+    case "Связаться с менеджером":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Наш менеджер скоро свяжется с вами.",
+      });
+      break;
+
+    default:
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Пожалуйста, выберите один из вариантов на кнопке.",
+      });
+  }
+
+  res.sendStatus(200);
 });
 
-// Запуск сервера
+app.get("/", (req, res) => {
+  res.send("✅ Бот работает!");
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
 });
-
