@@ -19,11 +19,11 @@ app.post("/webhook", async (req, res) => {
   const message = req.body.Body.trim();
   const waNumber = req.body.To;
 
-  // Мгновенный ответ Twilio, чтобы не было "ОК" в чате
+  // Быстрый ответ для Twilio (чтобы не было "ОК")
   res.send('<Response></Response>');
 
   if (!sessions[from]) {
-    // Отправляем приветствие и кнопки (через шаблон)
+    // Приветствие через шаблон
     await client.messages.create({
       from: waNumber,
       to: from,
@@ -57,7 +57,7 @@ app.post("/webhook", async (req, res) => {
     session.step = "done";
 
     try {
-      // Авторизация и получение баланса одним запросом
+      // Один запрос: логин + пароль => ответ сразу с балансом
       const response = await axios.post(
         "https://lk.peptides1.ru/api/auth/sign-in",
         {
