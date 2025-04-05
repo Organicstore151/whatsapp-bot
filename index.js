@@ -80,7 +80,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: `🎉 Ваш бонусный баланс: ${bonusAmount} ₽`,
+        body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
       });
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
@@ -94,7 +94,8 @@ app.post("/webhook", async (req, res) => {
     delete sessions[from];
   }
 
-  res.sendStatus(200); // Без "ОК"
+  // Только статус — без текста, чтобы не было "ОК"
+  res.sendStatus(200);
 });
 
 app.get("/", (req, res) => {
