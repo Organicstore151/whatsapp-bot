@@ -19,6 +19,7 @@ app.post("/webhook", async (req, res) => {
   const message = req.body.Body.trim();
   const waNumber = req.body.To;
 
+  // Если это новый пользователь
   if (!sessions[from]) {
     // Отправляем приветствие и кнопки
     await client.messages.create({
@@ -27,7 +28,7 @@ app.post("/webhook", async (req, res) => {
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
-    return res.sendStatus(200); // Ответ только после первого сообщения
+    return; // Просто выходим без отправки ответа "OK"
   }
 
   const session = sessions[from];
@@ -95,8 +96,8 @@ app.post("/webhook", async (req, res) => {
     delete sessions[from];
   }
 
-  // Ответим только один раз при первом запросе
-  res.sendStatus(200); 
+  // Не отправляем "OK"
+  res.end(); 
 });
 
 app.get("/", (req, res) => {
