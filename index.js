@@ -19,18 +19,15 @@ app.post("/webhook", async (req, res) => {
   const message = req.body.Body.trim();
   const waNumber = req.body.To;
 
-  // Быстрый ответ для Twilio (чтобы не было "ОК")
-  res.send('<Response></Response>');
-
   if (!sessions[from]) {
-    // Приветствие через шаблон
+    // Отправляем приветствие с шаблоном
     await client.messages.create({
       from: waNumber,
       to: from,
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
-    return;
+    return res.sendStatus(200);
   }
 
   const session = sessions[from];
@@ -57,8 +54,8 @@ app.post("/webhook", async (req, res) => {
     session.step = "done";
 
     try {
-      // Один запрос: логин + пароль => ответ сразу с балансом
-      const response = await axios.post(
+      // Авторизация и получение токена
+      const authResponse = await axios.post(
         "https://lk.peptides1.ru/api/auth/sign-in",
         {
           login: session.login,
@@ -66,12 +63,24 @@ app.post("/webhook", async (req, res) => {
         }
       );
 
-      const bonus = response.data.current.balance[0].amount;
+      const token = authResponse.data.token;
+
+      // Получение информации о бонусах
+      const bonusResponse = await axios.get(
+        "https://lk.peptides1.ru/api/partners/current/closing-info",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const bonusAmount = bonusResponse.data.current.balance[0].amount;
 
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: `🎉 Ваш бонусный баланс: ${bonus} ₽`,
+        body: `🎉 Ваш бонусный баланс: ${bonusAmount} ₽`,
       });
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
@@ -82,9 +91,10 @@ app.post("/webhook", async (req, res) => {
       });
     }
 
-    // Сброс сессии
     delete sessions[from];
   }
+
+  res.sendStatus(200); // Без "ОК"
 });
 
 app.get("/", (req, res) => {
