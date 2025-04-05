@@ -57,8 +57,8 @@ app.post("/webhook", async (req, res) => {
     session.step = "done";
 
     try {
-      // Авторизация через новое API
-      const authResponse = await axios.post(
+      // Авторизация и получение баланса одним запросом
+      const response = await axios.post(
         "https://lk.peptides1.ru/api/auth/sign-in",
         {
           login: session.login,
@@ -66,19 +66,7 @@ app.post("/webhook", async (req, res) => {
         }
       );
 
-      const token = authResponse.data.token;
-
-      // Получение информации о пользователе и бонусах
-      const userResponse = await axios.get(
-        "https://lk.peptides1.ru/api/user/info",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const bonus = userResponse.data.current.balance[0].amount;
+      const bonus = response.data.current.balance[0].amount;
 
       await client.messages.create({
         from: waNumber,
