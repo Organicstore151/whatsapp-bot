@@ -33,41 +33,23 @@ app.post('/webhook', (req, res) => {
     // Создаем объект ответа TwiML
     const twiml = new twilio.twiml.MessagingResponse();
 
-    // Генерация ответа с кнопками
-    const interactiveMessage = twiml.message();
-    interactiveMessage.body('Выберите одну из опций:');
+    // Формируем обычное сообщение
+    twiml.message('Выберите одну из опций:');
 
-    // Формируем кнопки с помощью Twilio Interactive message
-    const buttons = {
-        type: 'interactive',
-        interactive: {
-            type: 'button',
-            body: {
-                text: 'Выберите одну из опций:',
+    // Используем правильный формат для интерактивных кнопок
+    twiml.message().interactive({
+        type: 'button',
+        buttons: [
+            {
+                type: 'reply',
+                reply: { id: 'balance', title: 'Узнать баланс' }
             },
-            action: {
-                buttons: [
-                    {
-                        type: 'reply',
-                        reply: {
-                            id: 'balance',
-                            title: 'Узнать баланс',
-                        },
-                    },
-                    {
-                        type: 'reply',
-                        reply: {
-                            id: 'help',
-                            title: 'Получить помощь',
-                        },
-                    },
-                ],
-            },
-        },
-    };
-
-    // Добавляем кнопки в сообщение
-    twiml.message(buttons);
+            {
+                type: 'reply',
+                reply: { id: 'help', title: 'Получить помощь' }
+            }
+        ]
+    });
 
     // Отправляем TwiML
     res.type('text/xml');
