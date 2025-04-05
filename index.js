@@ -9,20 +9,21 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-// Сессии
 const sessions = {};
 
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
-  const message = req.body.Body?.trim();
   const waNumber = req.body.To;
+  const message = req.body.Body?.trim();
+  const payload = req.body.ButtonPayload;
+  const action = payload || message;
 
+  console.log("📦 Полный req.body:", req.body);
   console.log(`📩 Сообщение от ${from}: ${message}`);
+  console.log(`🆔 Action: ${action}`);
 
-  // Новая сессия — приветствие с кнопками
   if (!sessions[from]) {
-    sessions[from] = { step: "awaiting_selection" };
+    sessions[from] = { step: "started" };
 
     await client.messages.create({
       from: waNumber,
@@ -49,54 +50,49 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(200);
   }
 
-  const session = sessions[from];
+  switch (action.toLowerCase()) {
+    case "balance":
+    case "узнать баланс бонусов":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "ОК, сейчас проверю ваш бонусный баланс.",
+      });
+      break;
 
-  // Ответ на кнопку
-  if (session.step === "awaiting_selection") {
-    switch (message) {
-      case "Узнать баланс бонусов":
-        await client.messages.create({
-          from: waNumber,
-          to: from,
-          body: "ОК, сейчас проверю ваш бонусный баланс.",
-        });
-        break;
+    case "catalog":
+    case "каталог препаратов":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Вот ссылка на каталог: https://peptides1.ru/catalog",
+      });
+      break;
 
-      case "Каталог препаратов":
-        await client.messages.create({
-          from: waNumber,
-          to: from,
-          body: "Вот ссылка на каталог: https://peptides1.ru/catalog",
-        });
-        break;
+    case "order":
+    case "сделать заказ":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Пожалуйста, напишите название препарата, который вы хотите заказать.",
+      });
+      break;
 
-      case "Сделать заказ":
-        await client.messages.create({
-          from: waNumber,
-          to: from,
-          body: "Пожалуйста, напишите название препарата, который вы хотите заказать.",
-        });
-        break;
+    case "manager":
+    case "связаться с менеджером":
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Наш менеджер скоро свяжется с вами.",
+      });
+      break;
 
-      case "Связаться с менеджером":
-        await client.messages.create({
-          from: waNumber,
-          to: from,
-          body: "Наш менеджер скоро свяжется с вами.",
-        });
-        break;
-
-      default:
-        await client.messages.create({
-          from: waNumber,
-          to: from,
-          body: "Пожалуйста, выберите один из вариантов на кнопке.",
-        });
-        return res.sendStatus(200);
-    }
-
-    // Завершаем сессию после ответа
-    delete sessions[from];
+    default:
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Пожалуйста, выберите один из вариантов на кнопке.",
+      });
   }
 
   res.sendStatus(200);
