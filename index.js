@@ -1,66 +1,107 @@
-const express = require('express');
-const { MessagingResponse } = require('twilio');
-const dotenv = require('dotenv');
-dotenv.config();
+const express = require("express");
+const bodyParser = require("body-parser");
+const twilio = require("twilio");
+const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
-app.post('/webhook', (req, res) => {
-    const twiml = new MessagingResponse();
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    // Получаем сообщение от пользователя
-    const body = req.body.Body.trim();
-    const from = req.body.From;
+// Хранилище сессий пользователей
+const sessions = {};
 
-    // Проверяем нажатие кнопки "Узнать баланс бонусов"
-    if (body.toLowerCase() === 'узнать баланс бонусов') {
-        const message = twiml.message();
-        message.body('Пожалуйста, введите ваш ID пользователя.');
+app.post("/webhook", async (req, res) => {
+  const from = req.body.From;
+  const message = req.body.Body.trim();
+  const waNumber = req.body.To;
 
-        // Преобразуем это в запрос для ввода ID
-        message.interactive({
-            type: 'button',
-            body: 'Введите ваш ID',
-            action: {
-                type: 'message',
-                message: 'Введите ID'
-            }
-        });
+  if (!sessions[from]) {
+    // Отправляем приветствие и кнопки
+    await client.messages.create({
+      from: waNumber,
+      to: from,
+      contentSid: process.env.TEMPLATE_SID,
+    });
+    sessions[from] = { step: "waiting_for_command" };
+    return res.sendStatus(200);
+  }
 
-    } else if (body.toLowerCase() === 'введите id') {
-        const message = twiml.message();
-        message.body('Теперь, пожалуйста, введите ваш пароль.');
+  const session = sessions[from];
 
-        // Преобразуем это в запрос для ввода пароля
-        message.interactive({
-            type: 'button',
-            body: 'Введите ваш пароль',
-            action: {
-                type: 'message',
-                message: 'Введите пароль'
-            }
-        });
+  if (session.step === "waiting_for_command") {
+    if (message === "Узнать баланс бонусов") {
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "Пожалуйста, отправьте ваш ID (логин):",
+      });
+      session.step = "waiting_for_login";
+    }
+  } else if (session.step === "waiting_for_login") {
+    session.login = message;
+    session.step = "waiting_for_password";
+    await client.messages.create({
+      from: waNumber,
+      to: from,
+      body: "Теперь введите пароль:",
+    });
+  } else if (session.step === "waiting_for_password") {
+    session.password = message;
+    session.step = "done";
 
-    } else if (body.toLowerCase() === 'введите пароль') {
-        const message = twiml.message();
-        message.body('Спасибо! Мы получим ваш баланс бонусов.');
+    try {
+      // Получение токена
+      const authResponse = await axios.post(
+        "https://old-lk.peptides1.ru/api/v1/auth/login",
+        {
+          login: session.login,
+          password: session.password,
+        }
+      );
 
-        // Здесь нужно отправить ID и пароль на сервер для получения бонусного баланса
-        // (например, через API, который ты настроил на старом личном кабинете)
+      const token = authResponse.data.token;
 
-    } else {
-        const message = twiml.message();
-        message.body('Здравствуйте! Напишите "Узнать баланс бонусов", чтобы начать.');
+      // Получение данных пользователя
+      const userResponse = await axios.get(
+        "https://old-lk.peptides1.ru/api/v1/dealer/account",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const bonus = userResponse.data.account_balance;
+
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: `🎉 Ваш бонусный баланс: ${bonus} ₽`,
+      });
+    } catch (err) {
+      console.error("Ошибка при получении баланса:", err.message);
+      await client.messages.create({
+        from: waNumber,
+        to: from,
+        body: "❌ Ошибка при получении данных. Пожалуйста, проверьте логин и пароль.",
+      });
     }
 
-    res.type('text/xml');
-    res.send(twiml.toString());
+    // Сбросим сессию
+    delete sessions[from];
+  }
+
+  res.sendStatus(200);
 });
 
-app.listen(port, () => {
-    console.log(`Сервер запущен на http://localhost:${port}`);
+app.get("/", (req, res) => {
+  res.send("✅ WhatsApp бот работает");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
