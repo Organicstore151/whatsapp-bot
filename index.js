@@ -8,6 +8,11 @@ const port = process.env.PORT || 8080;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Обработка GET-запроса на корень
+app.get('/', (req, res) => {
+    res.send('Сервер работает. Ожидаю запросы на /webhook.');
+});
+
 app.post('/webhook', (req, res) => {
     console.log('Запрос от Twilio:', req.body);  // Логируем весь запрос
 
@@ -28,16 +33,21 @@ app.post('/webhook', (req, res) => {
     // Генерация ответа TwiML с кнопками
     const twiml = new twilio.twiml.MessagingResponse();
 
-    const message = twiml.message(responseMessage);
-    message.media('https://example.com/some-image.jpg');  // Пример изображения (если нужно)
+    // Добавляем сообщение
+    twiml.message(responseMessage);
 
-    // Добавление кнопок
-    const buttons = message.addButtons({
-        type: 'button',
-        text: 'Узнать баланс',
-        action: 'action=balance',
-    });
+    // Пример добавления кнопок с использованием Twilio Interactive Messaging
+    const interactiveMessage = twiml.message();
+    interactiveMessage.body('Выберите одну из опций:');
+    interactiveMessage.action = 'https://example.com/action'; // Здесь можно задать URL для дальнейших действий
 
+    // Добавляем кнопки (пример)
+    interactiveMessage.buttons = [
+        { type: 'reply', reply: { id: 'balance', title: 'Узнать баланс' } },
+        { type: 'reply', reply: { id: 'help', title: 'Получить помощь' } }
+    ];
+
+    // Отправляем TwiML
     res.type('text/xml');
     res.send(twiml.toString());
 });
