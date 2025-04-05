@@ -27,7 +27,7 @@ app.post("/webhook", async (req, res) => {
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
-    return res.sendStatus(200);
+    return res.sendStatus(200); // Ответ только после первого сообщения
   }
 
   const session = sessions[from];
@@ -95,7 +95,8 @@ app.post("/webhook", async (req, res) => {
     delete sessions[from];
   }
 
-  res.sendStatus(200);
+  // Ответим только один раз при первом запросе
+  res.sendStatus(200); 
 });
 
 app.get("/", (req, res) => {
