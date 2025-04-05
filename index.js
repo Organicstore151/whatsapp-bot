@@ -24,31 +24,36 @@ app.post('/webhook', (req, res) => {
         return res.status(400).send('Ошибка: не хватает обязательных параметров');
     }
 
-    // Проверяем сообщение и определяем, что делать дальше
-    let responseMessage = 'Здравствуйте, чем могу помочь?';
-    if (Body.trim().toLowerCase() === 'привет') {
-        responseMessage = 'Привет! Чем могу помочь?';
-    }
-
     // Создаем объект ответа TwiML
     const twiml = new twilio.twiml.MessagingResponse();
 
     // Формируем обычное сообщение
     twiml.message('Выберите одну из опций:');
 
-    // Используем правильный формат для интерактивных кнопок
-    twiml.message().interactive({
-        type: 'button',
-        buttons: [
-            {
-                type: 'reply',
-                reply: { id: 'balance', title: 'Узнать баланс' }
-            },
-            {
-                type: 'reply',
-                reply: { id: 'help', title: 'Получить помощь' }
-            }
-        ]
+    // Для кнопок используем правильный формат Twilio для WhatsApp
+    const message = twiml.message();
+    message.body('Выберите опцию');
+    message.action({
+        type: 'interactive',
+        interactive: {
+            type: 'button',
+            buttons: [
+                {
+                    type: 'reply',
+                    reply: {
+                        id: 'balance',
+                        title: 'Узнать баланс'
+                    }
+                },
+                {
+                    type: 'reply',
+                    reply: {
+                        id: 'help',
+                        title: 'Получить помощь'
+                    }
+                }
+            ]
+        }
     });
 
     // Отправляем TwiML
