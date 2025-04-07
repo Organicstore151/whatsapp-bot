@@ -44,13 +44,24 @@ app.post("/webhook", async (req, res) => {
 
     // 🔥 Обработка кнопки "Каталог препаратов"
     else if (message === "Каталог препаратов") {
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        contentSid: process.env.TEMPLATE_SID_CATALOG,
-        // Если в шаблоне есть переменные — добавь сюда:
-        // contentVariables: JSON.stringify({ title: "Каталог", body: "Ознакомьтесь с нашими товарами" }),
-      });
+      console.log("Нажата кнопка 'Каталог препаратов'. Отправка каталога...");
+      try {
+        const response = await client.messages.create({
+          from: waNumber,
+          to: from,
+          contentSid: process.env.TEMPLATE_SID_CATALOG,
+          // Если в шаблоне есть переменные — добавь сюда:
+          // contentVariables: JSON.stringify({ title: "Каталог", body: "Ознакомьтесь с нашими товарами" }),
+        });
+        console.log("Каталог успешно отправлен. Ответ от Twilio:", response);
+      } catch (err) {
+        console.error("Ошибка при отправке каталога:", err.message);
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "❌ Не удалось отправить каталог. Попробуйте позже.",
+        });
+      }
     }
   } else if (session.step === "waiting_for_login") {
     session.login = message;
