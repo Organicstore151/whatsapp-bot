@@ -1,130 +1,57 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-const twilio = require("twilio");
-const axios = require("axios");
-require("dotenv").config();
+const { MessagingResponse } = require("twilio").twiml;
+const { Twilio } = require("twilio");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const client = new Twilio(process.env.ACCOUNT_SID, process.env.AUTH_TOKEN);
+const waNumber = process.env.WHATSAPP_NUMBER;
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-// Хранилище сессий пользователей
-const sessions = {};
-
-app.post("/webhook", async (req, res) => {
+app.post("/incoming", async (req, res) => {
   const from = req.body.From;
-  const message = req.body.Body.trim();
-  const waNumber = req.body.To;
+  const message = req.body.Body?.trim();
 
-  if (!sessions[from]) {
-    // Отправляем приветствие с шаблоном
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      contentSid: process.env.TEMPLATE_SID,
-    });
-    sessions[from] = { step: "waiting_for_command" };
-    return res.status(200).send(); // Убираем "ОК"
-  }
-
-  const session = sessions[from];
-
-  if (session.step === "waiting_for_command") {
-    if (message === "Узнать баланс бонусов") {
+  try {
+    if (message === "Каталог препаратов") {
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: "Пожалуйста, отправьте ваш ID (логин):",
+        contentSid: process.env.TEMPLATE_SID_CATALOG,
+        contentVariables: JSON.stringify({
+          // Если у шаблона есть переменные — подставь их сюда
+          // Пример:
+          // title: "Каталог препаратов",
+          // body: "Выберите интересующие вас товары",
+        }),
       });
-      session.step = "waiting_for_login";
-    } else if (message === "Каталог препаратов") {
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        contentSid: undefined, // отключаем шаблон
-        content: {
-          interactive: {
-            type: "button",
-            body: {
-              text: "📦 Нажмите на кнопку ниже, чтобы открыть каталог препаратов:",
-            },
-            action: {
-              buttons: [
-                {
-                  type: "url",
-                  url: process.env.CATALOG_URL,
-                  title: "Открыть каталог",
-                },
-              ],
-            },
-          },
-        },
-      });
-    }
-  } else if (session.step === "waiting_for_login") {
-    session.login = message;
-    session.step = "waiting_for_password";
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "Теперь введите пароль:",
-    });
-  } else if (session.step === "waiting_for_password") {
-    session.password = message;
-    session.step = "done";
 
-    try {
-      // Авторизация и получение токена
-      const authResponse = await axios.post(
-        "https://lk.peptides1.ru/api/auth/sign-in",
-        {
-          login: session.login,
-          password: session.password,
-        }
-      );
-
-      const token = authResponse.data.token;
-
-      // Получение информации о бонусах
-      const bonusResponse = await axios.get(
-        "https://lk.peptides1.ru/api/partners/current/closing-info",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const bonusAmount = bonusResponse.data.current.balance[0].amount;
-
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
-      });
-    } catch (err) {
-      console.error("Ошибка при получении баланса:", err.message);
-      await client.messages.create({
-        from: waNumber,
-        to: from,
-        body: "❌ Ошибка при получении данных. Пожалуйста, проверьте логин и пароль.",
-      });
+      return res.sendStatus(200);
     }
 
-    delete sessions[from];
-    return res.status(200).send(); // без OK
+    // Остальные команды
+    const twiml = new MessagingResponse();
+    const msg = twiml.message("Выберите команду из меню:");
+    msg.button({
+      body: "Меню команд",
+      action: {
+        buttons: [
+          { type: "reply", reply: { id: "balance", title: "Узнать баланс бонусов" } },
+          { type: "reply", reply: { id: "catalog", title: "Каталог препаратов" } },
+        ],
+      },
+    });
+    res.writeHead(200, { "Content-Type": "text/xml" });
+    res.end(twiml.toString());
+  } catch (error) {
+    console.error("Ошибка при обработке запроса:", error);
+    res.sendStatus(500);
   }
-
-  return res.status(200).send(); // без OK
 });
 
-app.get("/", (req, res) => {
-  res.send("✅ WhatsApp бот работает");
-});
-
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
