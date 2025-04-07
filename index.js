@@ -42,7 +42,7 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
     // 🔥 Обработка кнопки "Каталог препаратов"
-    else if (message === "Каталог препаратов") {
+    if (message === "Каталог препаратов") {
       console.log("Нажата кнопка 'Каталог препаратов'. Отправка каталога...");
       try {
         const response = await client.messages.create({
@@ -62,7 +62,10 @@ app.post("/webhook", async (req, res) => {
         });
       }
     }
-  } else if (session.step === "waiting_for_login") {
+  }
+
+  // Логика для других шагов, например, ожидаем логин
+  else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
