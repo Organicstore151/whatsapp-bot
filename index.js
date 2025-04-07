@@ -40,7 +40,7 @@ app.post("/webhook", async (req, res) => {
         body: "Пожалуйста, отправьте ваш ID (логин):",
       });
       session.step = "waiting_for_login";
-    } else if (message === "Каталог товаров") {
+    } else if (message === "Каталог препаратов") {
       await client.messages.create({
         from: waNumber,
         to: from,
