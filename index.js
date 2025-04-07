@@ -14,17 +14,15 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 // Хранилище сессий пользователей
 const sessions = {};
 
-// Фиксированный WhatsApp отправитель
-const FROM_NUMBER = 'whatsapp:+77718124038';
-
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
   const message = req.body.Body.trim();
+  const waNumber = req.body.To;
 
   if (!sessions[from]) {
     // Отправляем приветствие с шаблоном
     await client.messages.create({
-      from: FROM_NUMBER,
+      from: waNumber,
       to: from,
       contentSid: process.env.TEMPLATE_SID,
     });
@@ -37,19 +35,18 @@ app.post("/webhook", async (req, res) => {
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
       await client.messages.create({
-        from: FROM_NUMBER,
+        from: waNumber,
         to: from,
         body: "Пожалуйста, отправьте ваш ID (логин):",
       });
       session.step = "waiting_for_login";
     }
-
-    // Обработка кнопки "Каталог препаратов"
+    // 🔥 Обработка кнопки "Каталог препаратов"
     else if (message === "Каталог препаратов") {
       console.log("Нажата кнопка 'Каталог препаратов'. Отправка каталога...");
       try {
         const response = await client.messages.create({
-          from: FROM_NUMBER,
+          from: waNumber,
           to: from,
           contentSid: process.env.TEMPLATE_SID_CATALOG,
           // Если в шаблоне есть переменные — добавь сюда:
@@ -59,7 +56,7 @@ app.post("/webhook", async (req, res) => {
       } catch (err) {
         console.error("Ошибка при отправке каталога:", err.message);
         await client.messages.create({
-          from: FROM_NUMBER,
+          from: waNumber,
           to: from,
           body: "❌ Не удалось отправить каталог. Попробуйте позже.",
         });
@@ -69,7 +66,7 @@ app.post("/webhook", async (req, res) => {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
-      from: FROM_NUMBER,
+      from: waNumber,
       to: from,
       body: "Теперь введите пароль:",
     });
@@ -102,14 +99,14 @@ app.post("/webhook", async (req, res) => {
       const bonusAmount = bonusResponse.data.current.balance[0].amount;
 
       await client.messages.create({
-        from: FROM_NUMBER,
+        from: waNumber,
         to: from,
         body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
       });
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
       await client.messages.create({
-        from: FROM_NUMBER,
+        from: waNumber,
         to: from,
         body: "❌ Ошибка при получении данных. Пожалуйста, проверьте логин и пароль.",
       });
