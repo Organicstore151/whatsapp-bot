@@ -229,10 +229,6 @@ const sendTestNewsletter = async () => {
       console.log("🔍 firstName:", firstName);
       console.log("🔍 middleName:", middleName);
 
-      if (typeof firstName === "undefined" || typeof middleName === "undefined") {
-        throw new Error("Имя или фамилия пользователя не найдены");
-      }
-
       const fullName = `${firstName} ${middleName}`.trim(); // Применяем trim только к строкам
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
@@ -243,7 +239,7 @@ const sendTestNewsletter = async () => {
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
-      // Параметры для отправки сообщения
+      // Параметры для отправки сообщения через шаблон
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
@@ -252,6 +248,7 @@ const sendTestNewsletter = async () => {
           '1': fullName,  // Имя пользователя
           '2': balance,   // Баланс
         },
+        body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс: ${balance} тг. Используйте его для покупок в Peptides!` // Текстовое сообщение на случай, если не удастся отправить через шаблон
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
