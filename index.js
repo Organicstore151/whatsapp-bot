@@ -199,7 +199,7 @@ const sendTestNewsletter = async () => {
     const partners = partnersResponse.data;
 
     // Ищем нужный номер
-    const targetPhone = "77057633896";
+    const targetPhone = "+77057633896";
     const target = partners.find((p) => p.phone === targetPhone);
 
     if (target) {
