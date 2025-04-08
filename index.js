@@ -47,7 +47,7 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           from: waNumber,
           to: from,
-          contentSid: "HXbd1c7c70877a308976f5590f703ed0b1", // catalog_options_new
+          contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e", // catalog_options_new
         });
       } catch (err) {
         console.error("Ошибка при отправке шаблона:", err.message);
@@ -64,7 +64,7 @@ app.post("/webhook", async (req, res) => {
       await sendPDF(
         waNumber,
         from,
-        "🧾 Ознакомьтесь с нашим каталогом препаратов:",
+        "🧾 Ознакомьтесь с нашим каталогом препаратов📥",
         "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"
       );
     }
@@ -73,7 +73,7 @@ app.post("/webhook", async (req, res) => {
       await sendPDF(
         waNumber,
         from,
-        "🩺 Ознакомьтесь с рекомендациями по комплексному применению:",
+        "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥",
         "https://organicstore151.github.io/comples/complex.pdf"
       );
     }
@@ -82,7 +82,7 @@ app.post("/webhook", async (req, res) => {
       await sendPDF(
         waNumber,
         from,
-        "💰 Ознакомьтесь с актуальным прайс-листом:",
+        "💰 Ознакомьтесь с актуальным прайс-листом📥",
         "https://organicstore151.github.io/price/price.pdf"
       );
     }
