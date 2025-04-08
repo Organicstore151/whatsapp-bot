@@ -205,24 +205,24 @@ const sendTestNewsletter = async () => {
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77772004488";
+    const targetPhone = "77772004488"; // Этот номер для отправки
 
     console.log("📋 Проверка номеров в базе:");
     for (const p of partners) {
-      const phone = p.partner?.phone; // Теперь доступ к номеру по правильному пути
-      const firstName = p.partner?.first_name || "Без имени";
+      const phone = p.partner?.person?.phone; // Теперь доступ к номеру по правильному пути
+      const firstName = p.partner?.person?.first_name || "Без имени";
       console.log("-", normalizePhone(phone), firstName);
     }
 
     // Ищем партнёра по номеру
     const target = partners.find((p) =>
-      normalizePhone(p.partner?.phone).endsWith("7057633896")
+      normalizePhone(p.partner?.person?.phone).endsWith("77772004488")
     );
 
     if (target) {
       const balance = target.account_balance;
-      const fullName = `${target.partner?.first_name} ${target.partner?.middle_name || ""}`.trim();
-      const toNumber = `whatsapp:+${normalizePhone(target.partner?.phone)}`;
+      const fullName = `${target.partner?.person?.first_name} ${target.partner?.person?.middle_name || ""}`.trim();
+      const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
