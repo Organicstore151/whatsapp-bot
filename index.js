@@ -188,7 +188,7 @@ const sendTestNewsletter = async () => {
     const token = authResponse.data.token;
     console.log("✅ Авторизация успешна");
 
-    // Получение клиентов
+    // Получение списка партнёров
     console.log("📥 Получение списка партнёров...");
     const partnersResponse = await axios.get(
       "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
@@ -209,37 +209,24 @@ const sendTestNewsletter = async () => {
 
     console.log("📋 Проверка номеров в базе:");
     for (const p of partners) {
-      const phone = p.partner?.person?.phone; // Теперь доступ к номеру по правильному пути
+      const phone = p.partner?.person?.phone; // Доступ к номеру
       const firstName = p.partner?.person?.first_name || "Без имени";
       console.log("-", normalizePhone(phone), firstName);
     }
 
     // Ищем партнёра по номеру
     const target = partners.find((p) =>
-      normalizePhone(p.partner?.person?.phone).endsWith("77772004488")
+      normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
     );
 
     if (target) {
       const balance = target.account_balance;
-
-      // Проверяем и логируем first_name и middle_name
-      const firstName = target.partner?.person?.first_name || "Без имени";
-      const middleName = target.partner?.person?.middle_name || ""; // если middle_name отсутствует, будет пустая строка
-
-      console.log("🔍 firstName:", firstName);
-      console.log("🔍 middleName:", middleName);
-
-      const fullName = `${firstName} ${middleName}`.trim(); // Применяем trim только к строкам
+      const fullName = `${target.partner?.person?.first_name} ${target.partner?.person?.middle_name || ""}`.trim();
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
-
-      // Проверка значений перед отправкой
-      if (!fullName || !balance) {
-        throw new Error("Не все необходимые данные (имя или баланс) найдены для отправки сообщения.");
-      }
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
-      // Параметры для отправки сообщения через шаблон
+      // Отправка сообщения через шаблон
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
@@ -248,7 +235,6 @@ const sendTestNewsletter = async () => {
           '1': fullName,  // Имя пользователя
           '2': balance,   // Баланс
         },
-        // Не указываем body, так как мы используем шаблон
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
