@@ -174,7 +174,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// ========== 💌 Тестовая рассылка баланса (одному пользователю) ==========
 const sendTestNewsletter = async () => {
   try {
     // Авторизация
@@ -198,13 +197,18 @@ const sendTestNewsletter = async () => {
     const partners = partnersResponse.data;
 
     // Функция нормализации номера
-    const normalizePhone = (phone) => (phone ? phone.replace(/\D/g, "") : "");
+    const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    // Ищем нужный номер
     const targetPhone = "77057633896";
-const target = partners.find((p) =>
-  normalizePhone(p.phone) === normalizePhone(targetPhone)
-);
+
+    console.log("📋 Список номеров в базе:");
+    partners.forEach((p) => {
+      console.log("-", normalizePhone(p.phone));
+    });
+
+    const target = partners.find(
+      (p) => normalizePhone(p.phone).endsWith("7057633896")
+    );
 
     if (target) {
       const balance = target.account_balance;
@@ -225,5 +229,3 @@ const target = partners.find((p) =>
   }
 };
 
-// Вызов функции при запуске (удобно для Railway теста)
-sendTestNewsletter();
