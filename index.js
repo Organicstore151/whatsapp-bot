@@ -229,14 +229,11 @@ const sendTestNewsletter = async () => {
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
-        templateSid: "HX46fd99955fd4978b7b652b5f018b18d2", // SID шаблона
-        statusCallback: "your-status-callback-url", // Если нужно отслеживать статус отправки
-        // Обратите внимание, что параметры для шаблона могут быть переданы в виде данных
-        // Например, это может быть передача параметров в шаблон
+        template: 'HX46fd99955fd4978b7b652b5f018b18d2',  // Используем SID шаблона
         templateData: {
-          first_name: fullName,
-          balance: balance,
-        }
+          '1': fullName,  // Имя пользователя
+          '2': balance,   // Баланс
+        },
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
