@@ -20,7 +20,6 @@ app.post("/webhook", async (req, res) => {
   const waNumber = req.body.To;
 
   if (!sessions[from]) {
-    // Отправляем приветствие с шаблоном
     await client.messages.create({
       from: waNumber,
       to: from,
@@ -42,28 +41,55 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
 
+    // Новый шаблон с вариантами каталога
     if (message === "Информация о продукции") {
-      console.log("Нажата кнопка 'Информация о продукции'. Отправка шаблона catalog_options_new...");
-
       try {
         await client.messages.create({
           from: waNumber,
           to: from,
-          contentSid: "HXbd1c7c70877a308976f5590f703ed0b1",
+          contentSid: "HXbd1c7c70877a308976f5590f703ed0b1", // catalog_options_new
         });
-        console.log("Шаблон 'catalog_options_new' успешно отправлен.");
       } catch (err) {
-        console.error("Ошибка при отправке шаблона 'catalog_options_new':", err.message);
+        console.error("Ошибка при отправке шаблона:", err.message);
         await client.messages.create({
           from: waNumber,
           to: from,
-          body: "❌ Не удалось отправить информацию. Попробуйте позже.",
+          body: "❌ Не удалось загрузить каталог. Попробуйте позже.",
         });
       }
-
-      return res.status(200).send();
     }
-  } else if (session.step === "waiting_for_login") {
+
+    // Отправка PDF-файлов по выбранной опции
+    if (message === "Каталог препаратов") {
+      await sendPDF(
+        waNumber,
+        from,
+        "🧾 Ознакомьтесь с нашим каталогом препаратов:",
+        "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"
+      );
+    }
+
+    if (message === "Курс лечения") {
+      await sendPDF(
+        waNumber,
+        from,
+        "🩺 Ознакомьтесь с рекомендациями по комплексному применению:",
+        "https://organicstore151.github.io/comples/comples.pdf"
+      );
+    }
+
+    if (message === "Прайс-лист") {
+      await sendPDF(
+        waNumber,
+        from,
+        "💰 Ознакомьтесь с актуальным прайс-листом:",
+        "https://organicstore151.github.io/price/price.pdf"
+      );
+    }
+  }
+
+  // Авторизация
+  else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
@@ -71,12 +97,13 @@ app.post("/webhook", async (req, res) => {
       to: from,
       body: "Теперь введите пароль:",
     });
-  } else if (session.step === "waiting_for_password") {
+  }
+
+  else if (session.step === "waiting_for_password") {
     session.password = message;
     session.step = "done";
 
     try {
-      // Авторизация и получение токена
       const authResponse = await axios.post(
         "https://lk.peptides1.ru/api/auth/sign-in",
         {
@@ -87,7 +114,6 @@ app.post("/webhook", async (req, res) => {
 
       const token = authResponse.data.token;
 
-      // Получение информации о бонусах
       const bonusResponse = await axios.get(
         "https://lk.peptides1.ru/api/partners/current/closing-info",
         {
@@ -119,6 +145,26 @@ app.post("/webhook", async (req, res) => {
 
   return res.status(200).send();
 });
+
+// Функция отправки PDF
+async function sendPDF(from, to, caption, mediaUrl) {
+  try {
+    await client.messages.create({
+      from,
+      to,
+      body: caption,
+      mediaUrl: [mediaUrl],
+    });
+    console.log("PDF отправлен:", mediaUrl);
+  } catch (err) {
+    console.error("Ошибка при отправке PDF:", err.message);
+    await client.messages.create({
+      from,
+      to,
+      body: "❌ Не удалось отправить файл. Попробуйте позже.",
+    });
+  }
+}
 
 app.get("/", (req, res) => {
   res.send("✅ WhatsApp бот работает");
