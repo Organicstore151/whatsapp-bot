@@ -232,7 +232,7 @@ const sendTestNewsletter = async () => {
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
-        template: 'HXd7d2be47c6555e32689d630d94f920b4',  // SID шаблона
+        contentSid: 'HX46fd99955fd4978b7b652b5f018b18d2',  // SID шаблона
         templateData: {
           '1': fullName,  // Имя пользователя
           '2': balance,   // Баланс
