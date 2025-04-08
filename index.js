@@ -42,23 +42,22 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
 
-    if (message === "Каталог препаратов") {
-      console.log("Нажата кнопка 'Каталог препаратов'. Отправка PDF...");
+    if (message === "Информация о продукции") {
+      console.log("Нажата кнопка 'Информация о продукции'. Отправка шаблона catalog_options_new...");
 
       try {
         await client.messages.create({
           from: waNumber,
           to: from,
-          body: "🧾 Ознакомьтесь с нашим каталогом препаратов:",
-          mediaUrl: ["https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"],
+          contentSid: "HXbd1c7c70877a308976f5590f703ed0b1",
         });
-        console.log("PDF успешно отправлен.");
+        console.log("Шаблон 'catalog_options_new' успешно отправлен.");
       } catch (err) {
-        console.error("Ошибка при отправке PDF каталога:", err.message);
+        console.error("Ошибка при отправке шаблона 'catalog_options_new':", err.message);
         await client.messages.create({
           from: waNumber,
           to: from,
-          body: "❌ Не удалось отправить каталог. Попробуйте позже.",
+          body: "❌ Не удалось отправить информацию. Попробуйте позже.",
         });
       }
 
