@@ -176,15 +176,20 @@ app.listen(PORT, () => {
 
 const sendTestNewsletter = async () => {
   try {
+    console.log("🚀 Запуск sendTestNewsletter...");
+
     // Авторизация
+    console.log("🔐 Авторизация...");
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login: process.env.LOGIN,
       password: process.env.PASSWORD,
     });
 
     const token = authResponse.data.token;
+    console.log("✅ Авторизация успешна");
 
     // Получение клиентов
+    console.log("📥 Получение списка партнёров...");
     const partnersResponse = await axios.get(
       "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
       {
@@ -195,16 +200,16 @@ const sendTestNewsletter = async () => {
     );
 
     const partners = partnersResponse.data;
+    console.log(`👥 Получено партнёров: ${partners.length}`);
 
-    // Функция нормализации номера
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77772004488";
+    const targetPhone = "77057633896";
 
-    console.log("📋 Список номеров в базе:");
-    partners.forEach((p) => {
-      console.log("-", normalizePhone(p.phone));
-    });
+    console.log("📋 Проверка номеров в базе:");
+    for (const p of partners) {
+      console.log("-", normalizePhone(p.phone), p.first_name);
+    }
 
     const target = partners.find(
       (p) => normalizePhone(p.phone).endsWith("7057633896")
@@ -213,10 +218,13 @@ const sendTestNewsletter = async () => {
     if (target) {
       const balance = target.account_balance;
       const fullName = `${target.first_name} ${target.middle_name}`.trim();
+      const toNumber = `whatsapp:+${normalizePhone(target.phone)}`;
+
+      console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
-        to: `whatsapp:+${normalizePhone(target.phone)}`,
+        to: toNumber,
         body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс на сегодня: ${balance} тг. Используйте его для покупок в Peptides!`,
       });
 
@@ -228,4 +236,4 @@ const sendTestNewsletter = async () => {
     console.error("❌ Ошибка при отправке тестовой рассылки:", error.message);
   }
 };
-
+sendTestNewsletter();
