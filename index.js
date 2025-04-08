@@ -221,7 +221,9 @@ const sendTestNewsletter = async () => {
 
     if (target) {
       const balance = target.account_balance;
-      const fullName = `${target.partner?.person?.first_name} ${target.partner?.person?.middle_name || ""}`.trim();
+      const firstName = target.partner?.person?.first_name || "Без имени"; // Обрабатываем first_name
+      const middleName = target.partner?.person?.middle_name || ""; // Обрабатываем middle_name
+      const fullName = `${firstName} ${middleName}`.trim(); // Теперь используем проверенные значения
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
       // Проверка значений перед отправкой
