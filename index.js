@@ -209,17 +209,20 @@ const sendTestNewsletter = async () => {
 
     console.log("📋 Проверка номеров в базе:");
     for (const p of partners) {
-      console.log("-", normalizePhone(p.phone), p.first_name);
+      const phone = p.partner?.bank_account?.person?.phone;
+      const firstName = p.partner?.bank_account?.first_name || "Без имени";
+      console.log("-", normalizePhone(phone), firstName);
     }
 
-    const target = partners.find(
-      (p) => normalizePhone(p.phone).endsWith("7057633896")
+    // Ищем партнёра по номеру
+    const target = partners.find((p) =>
+      normalizePhone(p.partner?.bank_account?.person?.phone).endsWith("7057633896")
     );
 
     if (target) {
       const balance = target.account_balance;
-      const fullName = `${target.first_name} ${target.middle_name}`.trim();
-      const toNumber = `whatsapp:+${normalizePhone(target.phone)}`;
+      const fullName = `${target.partner?.bank_account?.first_name} ${target.partner?.bank_account?.person?.middle_name || ""}`.trim();
+      const toNumber = `whatsapp:+${normalizePhone(target.partner?.bank_account?.person?.phone)}`;
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
@@ -229,7 +232,7 @@ const sendTestNewsletter = async () => {
         body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс на сегодня: ${balance} тг. Используйте его для покупок в Peptides!`,
       });
 
-      console.log(`✅ Сообщение отправлено на ${targetPhone} (${fullName}), баланс: ${balance}`);
+      console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
     } else {
       console.log("❌ Пользователь с таким номером не найден.");
     }
@@ -237,4 +240,5 @@ const sendTestNewsletter = async () => {
     console.error("❌ Ошибка при отправке тестовой рассылки:", error.message);
   }
 };
+
 sendTestNewsletter();
