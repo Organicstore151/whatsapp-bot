@@ -205,7 +205,7 @@ const sendTestNewsletter = async () => {
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77772004488"; // Этот номер для отправки
+    const targetPhone = "77078689400"; // Этот номер для отправки
 
     console.log("📋 Проверка номеров в базе:");
     for (const p of partners) {
@@ -216,7 +216,7 @@ const sendTestNewsletter = async () => {
 
     // Ищем партнёра по номеру
     const target = partners.find((p) =>
-      normalizePhone(p.partner?.person?.phone).endsWith("77772004488")
+      normalizePhone(p.partner?.person?.phone).endsWith("77078689400")
     );
 
     if (target) {
