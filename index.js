@@ -248,6 +248,7 @@ const sendTestNewsletter = async () => {
           '1': fullName,  // Имя пользователя
           '2': balance,   // Баланс
         },
+        // Не указываем body, так как мы используем шаблон
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
