@@ -22,7 +22,9 @@ async function sendMessage(phone, firstName, middleName, bonusAmount) {
       body: message,
     });
 
-    console.log(`Сообщение отправлено на номер ${phone}. Ответ: ${response.sid}`);
+    // Логируем SID сообщения для отслеживания
+    console.log(`Сообщение отправлено на номер ${phone}. SID: ${response.sid}`);
+
   } catch (err) {
     console.error(`Ошибка при отправке сообщения на номер ${phone}:`, err.message);
   }
