@@ -222,9 +222,12 @@ const sendTestNewsletter = async () => {
     if (target) {
       const balance = target.account_balance;
 
-      // Проверяем, что first_name и middle_name существуют
+      // Проверяем и логируем first_name и middle_name
       const firstName = target.partner?.person?.first_name || "Без имени";
       const middleName = target.partner?.person?.middle_name || ""; // если middle_name отсутствует, будет пустая строка
+
+      console.log("🔍 firstName:", firstName);
+      console.log("🔍 middleName:", middleName);
 
       if (typeof firstName === "undefined" || typeof middleName === "undefined") {
         throw new Error("Имя или фамилия пользователя не найдены");
@@ -240,6 +243,7 @@ const sendTestNewsletter = async () => {
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
+      // Параметры для отправки сообщения
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
