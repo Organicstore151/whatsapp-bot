@@ -173,8 +173,9 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
+
+// ========== 💌 Тестовая рассылка баланса (одному пользователю) ==========
 const sendTestNewsletter = async () => {
   try {
     // Авторизация
@@ -220,6 +221,5 @@ const sendTestNewsletter = async () => {
   }
 };
 
-// Вызов функции для теста
+// Вызов функции при запуске (удобно для Railway теста)
 sendTestNewsletter();
-
