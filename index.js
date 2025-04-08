@@ -216,7 +216,7 @@ const sendTestNewsletter = async () => {
 
     // Ищем партнёра по номеру
     const target = partners.find((p) =>
-      normalizePhone(p.partner?.person?.phone).endsWith("77772004488")
+      normalizePhone(p.partner?.person?.phone).endsWith("77078689400")
     );
 
     if (target) {
