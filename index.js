@@ -224,6 +224,11 @@ const sendTestNewsletter = async () => {
       const fullName = `${target.partner?.person?.first_name} ${target.partner?.person?.middle_name || ""}`.trim();
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
+      // Проверка значений перед отправкой
+      if (!fullName || !balance) {
+        throw new Error("Не все необходимые данные (имя или баланс) найдены для отправки сообщения.");
+      }
+
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
       await client.messages.create({
