@@ -221,9 +221,16 @@ const sendTestNewsletter = async () => {
 
     if (target) {
       const balance = target.account_balance;
-      const firstName = target.partner?.person?.first_name || "Без имени"; // Обрабатываем first_name
-      const middleName = target.partner?.person?.middle_name || ""; // Обрабатываем middle_name
-      const fullName = `${firstName} ${middleName}`.trim(); // Теперь используем проверенные значения
+
+      // Проверяем, что first_name и middle_name существуют
+      const firstName = target.partner?.person?.first_name || "Без имени";
+      const middleName = target.partner?.person?.middle_name || ""; // если middle_name отсутствует, будет пустая строка
+
+      if (typeof firstName === "undefined" || typeof middleName === "undefined") {
+        throw new Error("Имя или фамилия пользователя не найдены");
+      }
+
+      const fullName = `${firstName} ${middleName}`.trim(); // Применяем trim только к строкам
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
       // Проверка значений перед отправкой
