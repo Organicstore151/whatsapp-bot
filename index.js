@@ -199,7 +199,7 @@ const sendTestNewsletter = async () => {
     // Функция нормализации номера
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77057633896";
+    const targetPhone = "77772004488";
 
     console.log("📋 Список номеров в базе:");
     partners.forEach((p) => {
