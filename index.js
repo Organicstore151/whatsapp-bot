@@ -198,11 +198,13 @@ const sendTestNewsletter = async () => {
     const partners = partnersResponse.data;
 
     // Функция нормализации номера
-    const normalizePhone = (phone) => phone.replace(/\D/g, "");
+    const normalizePhone = (phone) => (phone ? phone.replace(/\D/g, "") : "");
 
     // Ищем нужный номер
     const targetPhone = "77057633896";
-    const target = partners.find((p) => normalizePhone(p.phone) === normalizePhone(targetPhone));
+const target = partners.find((p) =>
+  normalizePhone(p.phone) === normalizePhone(targetPhone)
+);
 
     if (target) {
       const balance = target.account_balance;
