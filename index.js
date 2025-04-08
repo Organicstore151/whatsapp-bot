@@ -173,3 +173,56 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+const axios = require("axios");
+const twilio = require("twilio");
+
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+const sendTestNewsletter = async () => {
+  try {
+    // Авторизация
+    const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+      login: process.env.LOGIN,
+      password: process.env.PASSWORD,
+    });
+
+    const token = authResponse.data.token;
+
+    // Получение клиентов
+    const partnersResponse = await axios.get(
+      "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const partners = partnersResponse.data;
+
+    // Ищем нужный номер
+    const targetPhone = "77057633896";
+    const target = partners.find((p) => p.phone === targetPhone);
+
+    if (target) {
+      const balance = target.account_balance;
+      const fullName = `${target.first_name} ${target.middle_name}`.trim();
+
+      await client.messages.create({
+        from: process.env.TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:+${targetPhone}`,
+        body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс на сегодня: ${balance} тг. Используйте его для покупок в Peptides!`,
+      });
+
+      console.log(`✅ Сообщение отправлено на ${targetPhone} (${fullName}), баланс: ${balance}`);
+    } else {
+      console.log("❌ Пользователь с таким номером не найден.");
+    }
+  } catch (error) {
+    console.error("❌ Ошибка при отправке тестовой рассылки:", error.message);
+  }
+};
+
+// Вызов функции для теста
+sendTestNewsletter();
+
