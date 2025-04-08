@@ -74,7 +74,7 @@ app.post("/webhook", async (req, res) => {
         waNumber,
         from,
         "🩺 Ознакомьтесь с рекомендациями по комплексному применению:",
-        "https://organicstore151.github.io/comples/comples.pdf"
+        "https://organicstore151.github.io/comples/complex.pdf"
       );
     }
 
