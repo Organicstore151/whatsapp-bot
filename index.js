@@ -42,33 +42,29 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
 
-    // 🔥 Обработка кнопки "Каталог препаратов" — отправка PDF
-    
     if (message === "Каталог препаратов") {
-  console.log("Нажата кнопка 'Каталог препаратов'. Отправка PDF...");
+      console.log("Нажата кнопка 'Каталог препаратов'. Отправка PDF...");
 
-  try {
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "🧾 Ознакомьтесь с нашим каталогом препаратов:",
-      mediaUrl: ["https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"],
-    });
-    console.log("PDF успешно отправлен.");
-  } catch (err) {
-    console.error("Ошибка при отправке PDF каталога:", err.message);
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "❌ Не удалось отправить каталог. Попробуйте позже.",
-    });
-  }
+      try {
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "🧾 Ознакомьтесь с нашим каталогом препаратов:",
+          mediaUrl: ["https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"],
+        });
+        console.log("PDF успешно отправлен.");
+      } catch (err) {
+        console.error("Ошибка при отправке PDF каталога:", err.message);
+        await client.messages.create({
+          from: waNumber,
+          to: from,
+          body: "❌ Не удалось отправить каталог. Попробуйте позже.",
+        });
+      }
 
-  return res.status(200).send();
-}
-
-  // Логика для других шагов, например, ожидаем логин
-  else if (session.step === "waiting_for_login") {
+      return res.status(200).send();
+    }
+  } else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
