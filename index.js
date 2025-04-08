@@ -229,7 +229,11 @@ const sendTestNewsletter = async () => {
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
-        body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс на сегодня: ${balance} тг. Используйте его для покупок в Peptides!`,
+        template: 'HX46fd99955fd4978b7b652b5f018b18d2',  // Используй SID шаблона
+        templateData: {
+          '1': fullName,  // Имя пользователя
+          '2': balance,   // Баланс
+        },
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
