@@ -174,7 +174,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-
 // ========== 💌 Тестовая рассылка баланса (одному пользователю) ==========
 const sendTestNewsletter = async () => {
   try {
@@ -198,9 +197,12 @@ const sendTestNewsletter = async () => {
 
     const partners = partnersResponse.data;
 
+    // Функция нормализации номера
+    const normalizePhone = (phone) => phone.replace(/\D/g, "");
+
     // Ищем нужный номер
     const targetPhone = "77057633896";
-    const target = partners.find((p) => p.phone === targetPhone);
+    const target = partners.find((p) => normalizePhone(p.phone) === normalizePhone(targetPhone));
 
     if (target) {
       const balance = target.account_balance;
@@ -208,7 +210,7 @@ const sendTestNewsletter = async () => {
 
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
-        to: `whatsapp:+${targetPhone}`,
+        to: `whatsapp:+${normalizePhone(target.phone)}`,
         body: `🎁 Здравствуйте, ${fullName}! Ваш бонусный баланс на сегодня: ${balance} тг. Используйте его для покупок в Peptides!`,
       });
 
