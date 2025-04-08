@@ -200,6 +200,7 @@ const sendTestNewsletter = async () => {
     );
 
     const partners = partnersResponse.data;
+    console.log("🔎 Пример партнёра:", JSON.stringify(partners[0], null, 2));
     console.log(`👥 Получено партнёров: ${partners.length}`);
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
