@@ -50,7 +50,7 @@ app.post("/webhook", async (req, res) => {
           from: waNumber,
           to: from,
           body: "📘 Вот наш актуальный каталог препаратов в PDF формате:",
-          mediaUrl: ['https://drive.google.com/file/d/1PlfNYjfZStMz02kXTbdsr8HnaRBusvV5/view?usp=sharing'], // <-- замени на свою прямую ссылку
+          mediaUrl: ['https://drive.google.com/uc?export=download&id=1PlfNYjfZStMz02kXTbdsr8HnaRBusvVV'], // <-- замени на свою прямую ссылку
         });
         console.log("Каталог PDF успешно отправлен.");
       } catch (err) {
