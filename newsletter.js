@@ -1,63 +1,67 @@
-const axios = require('axios');
-const twilio = require('twilio');
-require('dotenv').config();
+const axios = require("axios");
+const twilio = require("twilio");
+require("dotenv").config();
 
-// Twilio клиент
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-// Токен для авторизации
-const token = '2f0cdbd3-cff8-46bb-bfbe-80b50e88ef6e';  // замените на свой токен
+const login = process.env.PEPTIDES_LOGIN;
+const password = process.env.PEPTIDES_PASSWORD;
 
-// Номер для теста
-const testPhone = "77057633896";  // телефон для отправки
+const sendMessage = async (phone, firstName, middleName, balance) => {
+  const fullName = `${firstName} ${middleName}`.trim();
 
-// Функция для отправки сообщения пользователю
-async function sendMessage(phone, firstName, middleName, bonusAmount) {
+  const body = `🎉 ${fullName}, на вашем бонусном счете ${balance} тг. Вы можете использовать их для покупки продукции Peptides.`;
+
   try {
-    const message = `🎉 Уважаемый ${firstName} ${middleName}, ваш бонусный баланс составляет ${bonusAmount} тг. Используйте его для покупок!`;
-
-    const response = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER, // Замените на ваш номер WhatsApp из Twilio
-      to: `whatsapp:+7${phone}`,
-      body: message,
+    const message = await client.messages.create({
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: `+${phone}`,
+      body: body,
     });
 
-    // Логируем SID сообщения для отслеживания
-    console.log(`Сообщение отправлено на номер ${phone}. SID: ${response.sid}`);
-
+    console.log(`✅ Сообщение отправлено на ${phone}: ${message.sid}`);
   } catch (err) {
-    console.error(`Ошибка при отправке сообщения на номер ${phone}:`, err.message);
+    console.error(`❌ Ошибка при отправке на ${phone}:`, err.message);
   }
-}
+};
 
-// Функция для получения данных о пользователе
-async function fetchUserData() {
+const run = async () => {
   try {
-    const response = await axios.get('https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    // Авторизация
+    const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+      login,
+      password,
     });
 
-    const users = response.data.data;
+    const token = authResponse.data.token;
 
-    // Находим пользователя с нужным номером
-    const user = users.find(u => u.phone === testPhone);
+    // Получение партнёров
+    const partnersResponse = await axios.get(
+      "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const users = partnersResponse.data.items;
+
+    // Поиск нужного номера
+    const user = users.find((u) => u.phone === "77057633896");
 
     if (!user) {
-      console.log('Пользователь с таким номером не найден');
+      console.log("❌ Пользователь с таким номером не найден");
       return;
     }
 
-    console.log(`Найден пользователь: ${user.first_name} ${user.middle_name}, баланс: ${user.account_balance}`);
+    console.log(`✅ Найден пользователь: ${user.first_name} ${user.middle_name}`);
+    console.log(`💰 Бонусный баланс: ${user.account_balance} тг`);
 
-    // Отправляем сообщение с балансом
     await sendMessage(user.phone, user.first_name, user.middle_name, user.account_balance);
-
   } catch (err) {
-    console.error('Ошибка при получении данных пользователя:', err.message);
+    console.error("❌ Ошибка выполнения:", err.message);
   }
-}
+};
 
-// Запуск теста
-fetchUserData();
+run();
