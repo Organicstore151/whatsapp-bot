@@ -220,8 +220,10 @@ const sendTestNewsletter = async () => {
     );
 
     if (target) {
-      const balance = target.account_balance;
-      const fullName = `${target.partner?.person?.first_name} ${target.partner?.person?.middle_name || ""}`.trim();
+      const balance = target.account_balance || 0;  // Проверка на наличие данных о балансе
+      const firstName = target.partner?.person?.first_name || "Без имени"; // Проверка имени
+      const middleName = target.partner?.person?.middle_name || ""; // Проверка отчества
+      const fullName = `${firstName} ${middleName}`.trim();
       const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
