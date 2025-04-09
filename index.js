@@ -202,7 +202,7 @@ const sendTestNewsletter = async () => {
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77078689400"; // Номер для теста
+    const targetPhone = "77057633896"; // Номер для теста
 
     // Ищем партнёра по номеру
     const target = partners.find((p) =>
