@@ -173,3 +173,84 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+const axios = require("axios");
+const twilio = require("twilio");
+
+const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+
+const sendTestNewsletter = async () => {
+  try {
+    console.log("🚀 Запуск sendTestNewsletter...");
+
+    // Авторизация
+    console.log("🔐 Авторизация...");
+    const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+      login: process.env.LOGIN,
+      password: process.env.PASSWORD,
+    });
+
+    const token = authResponse.data.token;
+    console.log("✅ Авторизация успешна");
+
+    // Получение списка партнёров
+    console.log("📥 Получение списка партнёров...");
+    const partnersResponse = await axios.get(
+      "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const partners = partnersResponse.data;
+    console.log(`👥 Получено партнёров: ${partners.length}`);
+
+    const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
+
+    const targetPhone = "77078689400"; // Номер для теста
+
+    // Ищем партнёра по номеру
+    const target = partners.find((p) =>
+      normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
+    );
+
+    if (target) {
+      const balance = target.account_balance || 0;
+      const firstName = target.partner?.person?.first_name || "Без имени";
+      const middleName = target.partner?.person?.middle_name || "";
+      const fullName = `${firstName} ${middleName}`.trim();
+      const toNumber = `whatsapp:+${normalizePhone(target.partner?.person?.phone)}`;
+
+      console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
+
+      // Отправка через шаблон WhatsApp
+      await client.messages.create({
+        from: process.env.TWILIO_WHATSAPP_NUMBER,
+        to: toNumber,
+        template: {
+          name: 'bonus', // ⚠️ Имя шаблона, НЕ contentSid!
+          languageCode: 'ru',
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', text: fullName },
+                { type: 'text', text: balance.toString() },
+              ],
+            },
+          ],
+        },
+      });
+
+      console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
+    } else {
+      console.log("❌ Пользователь с таким номером не найден.");
+    }
+  } catch (error) {
+    console.error("❌ Ошибка при отправке тестовой рассылки:", error.message);
+  }
+};
+
+sendTestNewsletter();
+
