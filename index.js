@@ -176,6 +176,7 @@ const sendTestNewsletter = async () => {
   try {
     console.log("🚀 Запуск sendTestNewsletter...");
 
+    // Авторизация
     console.log("🔐 Авторизация...");
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login: process.env.LOGIN,
@@ -185,6 +186,7 @@ const sendTestNewsletter = async () => {
     const token = authResponse.data.token;
     console.log("✅ Авторизация успешна");
 
+    // Получение списка партнёров
     console.log("📥 Получение списка партнёров...");
     const partnersResponse = await axios.get(
       "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
@@ -200,8 +202,9 @@ const sendTestNewsletter = async () => {
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77078689400";
+    const targetPhone = "77078689400"; // Номер для теста
 
+    // Ищем партнёра по номеру
     const target = partners.find((p) =>
       normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
     );
@@ -215,22 +218,15 @@ const sendTestNewsletter = async () => {
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
+      // Отправка через contentSid шаблона
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
-        template: {
-          name: 'bonus',
-          languageCode: 'ru',
-          components: [
-            {
-              type: 'body',
-              parameters: [
-                { type: 'text', text: fullName },
-                { type: 'text', text: balance.toString() },
-              ],
-            },
-          ],
-        },
+        contentSid: process.env.BONUS_TEMPLATE_SID, // добавь в .env
+        contentVariables: JSON.stringify({
+          "1": fullName,
+          "2": balance.toString()
+        }),
       });
 
       console.log(`✅ Сообщение отправлено на ${toNumber} (${fullName}), баланс: ${balance}`);
@@ -241,7 +237,4 @@ const sendTestNewsletter = async () => {
     console.error("❌ Ошибка при отправке тестовой рассылки:", error.message);
   }
 };
-
 sendTestNewsletter(); // если не нужен автостарт — можешь закомментировать
-
-
