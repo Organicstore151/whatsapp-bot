@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json()); // ✅ Добавлено для поддержки JSON
 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
@@ -16,7 +17,7 @@ const sessions = {};
 
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
-  const message = req.body.Body.trim();
+  const message = (req.body.Body || "").trim(); // ✅ Защита от undefined
   const waNumber = req.body.To;
 
   if (!sessions[from]) {
@@ -41,13 +42,12 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
 
-    // Новый шаблон с вариантами каталога
     if (message === "Информация о продукции") {
       try {
         await client.messages.create({
           from: waNumber,
           to: from,
-          contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e", // catalog_options_new
+          contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e",
         });
       } catch (err) {
         console.error("Ошибка при отправке шаблона:", err.message);
@@ -59,7 +59,6 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // Отправка PDF-файлов по выбранной опции
     if (message === "Каталог препаратов") {
       await sendPDF(
         waNumber,
@@ -88,7 +87,6 @@ app.post("/webhook", async (req, res) => {
     }
   }
 
-  // Авторизация
   else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
@@ -178,7 +176,6 @@ const sendTestNewsletter = async () => {
   try {
     console.log("🚀 Запуск sendTestNewsletter...");
 
-    // Авторизация
     console.log("🔐 Авторизация...");
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login: process.env.LOGIN,
@@ -188,7 +185,6 @@ const sendTestNewsletter = async () => {
     const token = authResponse.data.token;
     console.log("✅ Авторизация успешна");
 
-    // Получение списка партнёров
     console.log("📥 Получение списка партнёров...");
     const partnersResponse = await axios.get(
       "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
@@ -204,9 +200,8 @@ const sendTestNewsletter = async () => {
 
     const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    const targetPhone = "77078689400"; // Номер для теста
+    const targetPhone = "77078689400";
 
-    // Ищем партнёра по номеру
     const target = partners.find((p) =>
       normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
     );
@@ -220,12 +215,11 @@ const sendTestNewsletter = async () => {
 
       console.log(`📨 Отправка сообщения на ${toNumber} (${fullName})...`);
 
-      // Отправка через шаблон WhatsApp
       await client.messages.create({
         from: process.env.TWILIO_WHATSAPP_NUMBER,
         to: toNumber,
         template: {
-          name: 'bonus', // ⚠️ Имя шаблона, НЕ contentSid!
+          name: 'bonus',
           languageCode: 'ru',
           components: [
             {
@@ -248,5 +242,6 @@ const sendTestNewsletter = async () => {
   }
 };
 
-sendTestNewsletter();
+sendTestNewsletter(); // если не нужен автостарт — можешь закомментировать
+
 
