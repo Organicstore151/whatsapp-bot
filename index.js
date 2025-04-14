@@ -20,12 +20,11 @@ app.post("/webhook", async (req, res) => {
 
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
-  const waNumber = req.body.To;
 
   if (!sessions[from]) {
     await client.messages.create({
-      from: waNumber,
       to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
@@ -37,8 +36,8 @@ app.post("/webhook", async (req, res) => {
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
       await client.messages.create({
-        from: waNumber,
         to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "Пожалуйста, отправьте ваш ID (логин):",
       });
       session.step = "waiting_for_login";
@@ -47,51 +46,36 @@ app.post("/webhook", async (req, res) => {
     if (message === "Информация о продукции") {
       try {
         await client.messages.create({
-          from: waNumber,
           to: from,
+          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
           contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e",
         });
       } catch (err) {
         console.error("Ошибка при отправке шаблона:", err.message);
         await client.messages.create({
-          from: waNumber,
           to: from,
+          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
           body: "❌ Не удалось загрузить каталог. Попробуйте позже.",
         });
       }
     }
 
     if (message === "Каталог препаратов") {
-      await sendPDF(
-        waNumber,
-        from,
-        "🧾 Ознакомьтесь с нашим каталогом препаратов📥",
-        "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf"
-      );
+      await sendPDF(from, "🧾 Ознакомьтесь с нашим каталогом препаратов📥", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
     }
 
     if (message === "Курс лечения") {
-      await sendPDF(
-        waNumber,
-        from,
-        "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥",
-        "https://organicstore151.github.io/comples/complex.pdf"
-      );
+      await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
     }
 
     if (message === "Прайс-лист") {
-      await sendPDF(
-        waNumber,
-        from,
-        "💰 Ознакомьтесь с актуальным прайс-листом📥",
-        "https://organicstore151.github.io/price/price.pdf"
-      );
+      await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
     }
 
     if (message === "Сделать заказ") {
       await client.messages.create({
-        from: waNumber,
         to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "🛒 Пожалуйста, отправьте ваше ФИО:",
       });
       session.step = "waiting_for_name";
@@ -102,8 +86,8 @@ app.post("/webhook", async (req, res) => {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
-      from: waNumber,
       to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: "Теперь введите пароль:",
     });
   }
@@ -135,15 +119,15 @@ app.post("/webhook", async (req, res) => {
       const bonusAmount = bonusResponse.data.current.balance[0].amount;
 
       await client.messages.create({
-        from: waNumber,
         to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
       });
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
       await client.messages.create({
-        from: waNumber,
         to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "❌ Ошибка при получении данных. Пожалуйста, проверьте логин и пароль.",
       });
     }
@@ -152,13 +136,12 @@ app.post("/webhook", async (req, res) => {
     return res.status(200).send();
   }
 
-  // 🔄 Заказ — шаги: ФИО → препараты → адрес
   else if (session.step === "waiting_for_name") {
     session.name = message;
     session.step = "waiting_for_items";
     await client.messages.create({
-      from: waNumber,
       to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: "✍️ Теперь отправьте список препаратов:",
     });
   }
@@ -167,8 +150,8 @@ app.post("/webhook", async (req, res) => {
     session.items = message;
     session.step = "waiting_for_address";
     await client.messages.create({
-      from: waNumber,
       to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: "📦 И наконец, введите адрес доставки:",
     });
   }
@@ -176,7 +159,6 @@ app.post("/webhook", async (req, res) => {
   else if (session.step === "waiting_for_address") {
     session.address = message;
 
-    // Сообщение менеджеру
     const orderText = `🛒 Новый заказ:
 
 👤 ФИО: ${session.name}
@@ -185,15 +167,15 @@ app.post("/webhook", async (req, res) => {
 📞 От клиента: ${from}`;
 
     await client.messages.create({
-      from: waNumber,
       to: "+77774991275",
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: orderText,
     });
 
     await client.messages.create({
-      from: waNumber,
       to: from,
-      body: "✅ Спасибо! Ваш заказ отправлен менеджеру. Он свяжется с вами в ближайшее время.",
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "✅ Спасибо! Ваш заказ принят. Мы свяжемся с вами в ближайшее время.",
     });
 
     delete sessions[from];
@@ -204,11 +186,11 @@ app.post("/webhook", async (req, res) => {
 });
 
 // Функция отправки PDF
-async function sendPDF(from, to, caption, mediaUrl) {
+async function sendPDF(to, caption, mediaUrl) {
   try {
     await client.messages.create({
-      from,
       to,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: caption,
       mediaUrl: [mediaUrl],
     });
@@ -216,8 +198,8 @@ async function sendPDF(from, to, caption, mediaUrl) {
   } catch (err) {
     console.error("❌ Ошибка при отправке PDF:", err.message);
     await client.messages.create({
-      from,
       to,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: "❌ Не удалось отправить файл. Попробуйте позже.",
     });
   }
