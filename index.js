@@ -82,14 +82,11 @@ app.post("/webhook", async (req, res) => {
     }
 
     if (message === "Связаться с менеджером") {
-      const managerNumber = "+77774991275";
-      const messageText = "Здравствуйте, я хочу заказать";
-      const url = `https://wa.me/${managerNumber}?text=${encodeURIComponent(messageText)}`;
-
+      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: `🔗 Чтобы связаться с менеджером, нажмите на ссылку: ${url}`,
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     }
   }
