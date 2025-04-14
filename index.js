@@ -15,37 +15,34 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 // Хранилище сессий пользователей
 const sessions = {};
 
-// Webhook для входящих сообщений
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
   const waNumber = req.body.To;
 
-  // Новая сессия — отправить стартовый шаблон
   if (!sessions[from]) {
-    sessions[from] = { step: "waiting_for_command" };
     await client.messages.create({
       from: waNumber,
       to: from,
       contentSid: process.env.TEMPLATE_SID,
     });
+    sessions[from] = { step: "waiting_for_command" };
     return res.status(200).send();
   }
 
   const session = sessions[from];
 
-  // === Главное меню ===
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
-      session.step = "waiting_for_login";
       await client.messages.create({
         from: waNumber,
         to: from,
         body: "Пожалуйста, отправьте ваш ID (логин):",
       });
+      session.step = "waiting_for_login";
     }
 
-    else if (message === "Информация о продукции") {
+    if (message === "Информация о продукции") {
       try {
         await client.messages.create({
           from: waNumber,
@@ -62,7 +59,7 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    else if (message === "Каталог препаратов") {
+    if (message === "Каталог препаратов") {
       await sendPDF(
         waNumber,
         from,
@@ -71,7 +68,7 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
-    else if (message === "Курс лечения") {
+    if (message === "Курс лечения") {
       await sendPDF(
         waNumber,
         from,
@@ -80,7 +77,7 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
-    else if (message === "Прайс-лист") {
+    if (message === "Прайс-лист") {
       await sendPDF(
         waNumber,
         from,
@@ -89,17 +86,16 @@ app.post("/webhook", async (req, res) => {
       );
     }
 
-    else if (message === "Сделать заказ") {
-      session.step = "order_waiting_for_name";
+    if (message === "Сделать заказ") {
+      session.step = "waiting_for_order_text";
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: "📝 Пожалуйста, укажите ваше ФИО:",
+        body: "🛒 Пожалуйста, напишите, что вы хотите заказать:",
       });
     }
   }
 
-  // === Получение логина и пароля ===
   else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
@@ -112,6 +108,7 @@ app.post("/webhook", async (req, res) => {
 
   else if (session.step === "waiting_for_password") {
     session.password = message;
+    session.step = "done";
 
     try {
       const authResponse = await axios.post(
@@ -153,42 +150,15 @@ app.post("/webhook", async (req, res) => {
     return res.status(200).send();
   }
 
-  // === Заказ: шаг 1 — ФИО ===
-  else if (session.step === "order_waiting_for_name") {
-    session.orderName = message;
-    session.step = "order_waiting_for_items";
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "📦 Укажите, что вы хотите заказать (название препарата и количество):",
-    });
-  }
-
-  // === Заказ: шаг 2 — препараты ===
-  else if (session.step === "order_waiting_for_items") {
-    session.orderItems = message;
-    session.step = "order_waiting_for_address";
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "🏠 Укажите, пожалуйста, адрес доставки:",
-    });
-  }
-
-  // === Заказ: шаг 3 — адрес ===
-  else if (session.step === "order_waiting_for_address") {
-    session.orderAddress = message;
-    session.step = "done";
-
-    const summary = `✅ Спасибо за ваш заказ!\n\n👤 ФИО: ${session.orderName}\n📦 Заказ: ${session.orderItems}\n🏠 Адрес: ${session.orderAddress}\n\nМы скоро свяжемся с вами для подтверждения.`;
+  else if (session.step === "waiting_for_order_text") {
+    // Тут можно отправить заказ на почту, сохранить в базу и т.п.
+    console.log("📦 Заказ от клиента:", message);
 
     await client.messages.create({
       from: waNumber,
       to: from,
-      body: summary,
+      body: "✅ Спасибо! Ваш заказ принят. Мы скоро свяжемся с вами.",
     });
-
-    // Здесь можно добавить отправку данных в админку/Google Sheets
 
     delete sessions[from];
     return res.status(200).send();
@@ -197,7 +167,7 @@ app.post("/webhook", async (req, res) => {
   return res.status(200).send();
 });
 
-// === Функция отправки PDF ===
+// Функция отправки PDF
 async function sendPDF(from, to, caption, mediaUrl) {
   try {
     await client.messages.create({
