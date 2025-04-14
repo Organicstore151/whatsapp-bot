@@ -193,7 +193,7 @@ app.post("/webhook", async (req, res) => {
     await client.messages.create({
       from: waNumber,
       to: from,
-      body: "✅ Спасибо! Ваш заказ принят. Мы свяжемся с вами в ближайшее время.",
+      body: "✅ Спасибо! Ваш заказ отправлен менеджеру. Он свяжется с вами в ближайшее время.",
     });
 
     delete sessions[from];
