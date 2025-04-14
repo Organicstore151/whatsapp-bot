@@ -159,13 +159,25 @@ app.post("/webhook", async (req, res) => {
         }
       );
 
-      const bonusAmount = bonusResponse.data.current.balance[0].amount;
+      const balanceArray = bonusResponse.data?.current?.balance;
+      const bonusAmount = Array.isArray(balanceArray) && balanceArray[0]?.amount !== undefined
+        ? balanceArray[0].amount
+        : null;
 
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
-      });
+      if (bonusAmount !== null) {
+        await client.messages.create({
+          to: from,
+          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
+        });
+      } else {
+        await client.messages.create({
+          to: from,
+          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+          body: "⚠️ Не удалось получить бонусный баланс. Возможно, он отсутствует или формат данных изменился.",
+        });
+      }
+
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
       await client.messages.create({
