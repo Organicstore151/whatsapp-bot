@@ -43,7 +43,7 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_login";
     }
 
-    if (message === "Информация о продукции") {
+    else if (message === "Информация о продукции") {
       try {
         await client.messages.create({
           to: from,
@@ -60,19 +60,19 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    if (message === "Каталог препаратов") {
+    else if (message === "Каталог препаратов") {
       await sendPDF(from, "🧾 Ознакомьтесь с нашим каталогом препаратов📥", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
     }
 
-    if (message === "Курс лечения") {
+    else if (message === "Курс лечения") {
       await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
     }
 
-    if (message === "Прайс-лист") {
+    else if (message === "Прайс-лист") {
       await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
     }
 
-    if (message === "Сделать заказ") {
+    else if (message === "Сделать заказ") {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
@@ -81,12 +81,46 @@ app.post("/webhook", async (req, res) => {
       session.step = "waiting_for_name";
     }
 
-    if (message === "Связаться с менеджером") {
+    else if (message === "Связаться с менеджером") {
       const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+      });
+    }
+
+    else {
+      session.step = "unrecognized_input";
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+      });
+    }
+  }
+
+  else if (session.step === "unrecognized_input") {
+    if (message === "1") {
+      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+      });
+      session.step = "waiting_for_command";
+    } else if (message === "2") {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        contentSid: process.env.TEMPLATE_SID,
+      });
+      session.step = "waiting_for_command";
+    } else {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
       });
     }
   }
@@ -171,9 +205,8 @@ app.post("/webhook", async (req, res) => {
     const orderText = `🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}`;
 
     try {
-      // Отправка менеджеру от вашего WhatsApp-номера
       await client.messages.create({
-        from: "whatsapp:+77718124038", // Укажите ваш Twilio номер здесь
+        from: "whatsapp:+77718124038",
         to: "whatsapp:+77774991275",
         body: orderText,
       });
