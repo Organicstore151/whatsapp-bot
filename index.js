@@ -80,6 +80,18 @@ app.post("/webhook", async (req, res) => {
       });
       session.step = "waiting_for_name";
     }
+
+    if (message === "Связаться с менеджером") {
+      const managerNumber = "+77774991275";
+      const messageText = "Здравствуйте, я хочу заказать";
+      const url = `https://wa.me/${managerNumber}?text=${encodeURIComponent(messageText)}`;
+
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: `🔗 Чтобы связаться с менеджером, нажмите на ссылку: ${url}`,
+      });
+    }
   }
 
   else if (session.step === "waiting_for_login") {
