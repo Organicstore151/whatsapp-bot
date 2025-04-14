@@ -173,7 +173,7 @@ app.post("/webhook", async (req, res) => {
     try {
       // Отправка менеджеру от вашего WhatsApp-номера
       await client.messages.create({
-        from: "whatsapp:+14155238886", // Укажите ваш Twilio номер здесь
+        from: "whatsapp:+77718124038", // Укажите ваш Twilio номер здесь
         to: "whatsapp:+77774991275",
         body: orderText,
       });
