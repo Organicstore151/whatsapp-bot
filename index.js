@@ -16,7 +16,7 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const sessions = {};
 
 app.post("/webhook", async (req, res) => {
-  console.log("📩 Входящее сообщение:", req.body); // <-- лог входящих сообщений
+  console.log("📩 Входящее сообщение:", req.body);
 
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
@@ -92,8 +92,9 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: "🛒 Пожалуйста, отправьте список препаратов, которые вы хотите заказать. Мы с вами свяжемся для подтверждения!",
+        body: "🛒 Пожалуйста, отправьте ваше ФИО:",
       });
+      session.step = "waiting_for_name";
     }
   }
 
@@ -146,6 +147,54 @@ app.post("/webhook", async (req, res) => {
         body: "❌ Ошибка при получении данных. Пожалуйста, проверьте логин и пароль.",
       });
     }
+
+    delete sessions[from];
+    return res.status(200).send();
+  }
+
+  // 🔄 Заказ — шаги: ФИО → препараты → адрес
+  else if (session.step === "waiting_for_name") {
+    session.name = message;
+    session.step = "waiting_for_items";
+    await client.messages.create({
+      from: waNumber,
+      to: from,
+      body: "✍️ Теперь отправьте список препаратов:",
+    });
+  }
+
+  else if (session.step === "waiting_for_items") {
+    session.items = message;
+    session.step = "waiting_for_address";
+    await client.messages.create({
+      from: waNumber,
+      to: from,
+      body: "📦 И наконец, введите адрес доставки:",
+    });
+  }
+
+  else if (session.step === "waiting_for_address") {
+    session.address = message;
+
+    // Сообщение менеджеру
+    const orderText = `🛒 Новый заказ:
+
+👤 ФИО: ${session.name}
+📋 Препараты: ${session.items}
+🏠 Адрес: ${session.address}
+📞 От клиента: ${from}`;
+
+    await client.messages.create({
+      from: waNumber,
+      to: "+77774991275",
+      body: orderText,
+    });
+
+    await client.messages.create({
+      from: waNumber,
+      to: from,
+      body: "✅ Спасибо! Ваш заказ принят. Мы свяжемся с вами в ближайшее время.",
+    });
 
     delete sessions[from];
     return res.status(200).send();
