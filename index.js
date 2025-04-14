@@ -16,6 +16,8 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const sessions = {};
 
 app.post("/webhook", async (req, res) => {
+  console.log("📩 Входящее сообщение:", req.body); // <-- лог входящих сообщений
+
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
   const waNumber = req.body.To;
@@ -87,11 +89,10 @@ app.post("/webhook", async (req, res) => {
     }
 
     if (message === "Сделать заказ") {
-      session.step = "waiting_for_order_text";
       await client.messages.create({
         from: waNumber,
         to: from,
-        body: "🛒 Пожалуйста, напишите, что вы хотите заказать:",
+        body: "🛒 Пожалуйста, отправьте список препаратов, которые вы хотите заказать. Мы с вами свяжемся для подтверждения!",
       });
     }
   }
@@ -150,20 +151,6 @@ app.post("/webhook", async (req, res) => {
     return res.status(200).send();
   }
 
-  else if (session.step === "waiting_for_order_text") {
-    // Тут можно отправить заказ на почту, сохранить в базу и т.п.
-    console.log("📦 Заказ от клиента:", message);
-
-    await client.messages.create({
-      from: waNumber,
-      to: from,
-      body: "✅ Спасибо! Ваш заказ принят. Мы скоро свяжемся с вами.",
-    });
-
-    delete sessions[from];
-    return res.status(200).send();
-  }
-
   return res.status(200).send();
 });
 
@@ -176,9 +163,9 @@ async function sendPDF(from, to, caption, mediaUrl) {
       body: caption,
       mediaUrl: [mediaUrl],
     });
-    console.log("PDF отправлен:", mediaUrl);
+    console.log("📤 PDF отправлен:", mediaUrl);
   } catch (err) {
-    console.error("Ошибка при отправке PDF:", err.message);
+    console.error("❌ Ошибка при отправке PDF:", err.message);
     await client.messages.create({
       from,
       to,
@@ -192,5 +179,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
