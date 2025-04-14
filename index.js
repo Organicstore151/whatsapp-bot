@@ -16,7 +16,7 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const sessions = {};
 
 // WhatsApp номера
-const TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"; // замените на свой номер в .env
+const TWILIO_WHATSAPP_NUMBER = "whatsapp:+77718124038"; // замените на свой номер в .env
 const MANAGER_WHATSAPP_NUMBER = "whatsapp:+77774991275";
 
 app.post("/webhook", async (req, res) => {
