@@ -37,15 +37,9 @@ const threads = {}; // храним нити ассистента по поль�
 // Основной webhook
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
-  let message = (req.body.Body || "").trim();
+  const message = (req.body.Body || "").trim();
   const mediaUrl = req.body.MediaUrl0;
-
   logUserAction(from, "message_received", message);
-
-  // Если сообщение пустое, возвращаем ошибку
-  if (!message) {
-    return res.status(400).send("Message content must be non-empty.");
-  }
 
   // Создаем нить, если нет
   if (!threads[from]) {
@@ -154,12 +148,25 @@ async function getBonusBalance(login, password) {
 
 async function sendOrder(data, from) {
   const orderText = `🛒 Новый заказ:\n👤 Имя: ${data.name}\n📋 Препараты: ${data.items}\n🏠 Адрес: ${data.address}\n📞 Клиент: ${from}`;
-  await client.messages.create({
-    from: "whatsapp:" + process.env.WHATSAPP_SENDER,
-    to: "whatsapp:" + process.env.MANAGER_PHONE,
-    body: orderText,
-  });
-  return "✅ Заказ отправлен менеджеру.";
+
+  try {
+    // Используем правильные переменные окружения
+    const messageResponse = await client.messages.create({
+      from: process.env.TWILIO_WHATSAPP_NUMBER, // Получаем номер отправителя из .env
+      to: "whatsapp:" + process.env.MANAGER_PHONE, // Получаем номер менеджера из .env
+      body: orderText,
+    });
+
+    // Проверка на успешную отправку
+    if (messageResponse.sid) {
+      return "✅ Заказ отправлен менеджеру.";
+    } else {
+      return "❌ Не удалось отправить заказ менеджеру.";
+    }
+  } catch (error) {
+    console.error("Ошибка при отправке заказа:", error);
+    return "❌ Не удалось отправить заказ менеджеру.";
+  }
 }
 
 app.listen(PORT, () => {
