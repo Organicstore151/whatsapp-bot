@@ -233,47 +233,43 @@ app.post("/webhook", async (req, res) => {
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📍 Пожалуйста, укажите адрес доставки.*\n_Наш менеджер свяжется с вами в ближайшее время, чтобы подтвердить заказ, уточнить удобное время и способ доставки, а также согласовать оплату:_",
+      body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\n_Это нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:_",
     });
   } else if (session.step === "waiting_for_address") {
     session.address = message;
-    session.step = "done";
+    session.step = "order_complete";
 
-    const orderData = {
-      clientName: session.clientName,
-      products: session.products,
-      address: session.address,
-    };
+    const orderMessage = `
+      🛒 Новый заказ!
+      Клиент: ${session.clientName}
+      Препараты: ${session.products}
+      Адрес доставки: ${session.address}
+    `;
 
-    await sendOrderToManager(orderData);
+    await client.messages.create({
+      to: "whatsapp:+77774991275",  // Менеджерский номер для получения заказов
+      from: from,
+      body: orderMessage,
+    });
+
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "🎉 Ваш заказ принят! Мы свяжемся с вами для подтверждения.",
+      body: "✅ Ваш заказ принят! Менеджер свяжется с вами в ближайшее время.",
     });
+    sessions[from] = { step: "waiting_for_command" };
   }
 
   return res.status(200).send();
 });
 
-async function sendPDF(to, message, fileUrl) {
-  await client.messages.create({
-    to: to,
+function sendPDF(to, body, url) {
+  return client.messages.create({
+    to,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body: message,
-    mediaUrl: [fileUrl],
+    body,
+    mediaUrl: url,
   });
-}
-
-async function sendOrderToManager(orderData) {
-  try {
-    await axios.post("https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage", {
-      chat_id: "YOUR_CHAT_ID",
-      text: `Новый заказ:\nИмя клиента: ${orderData.clientName}\nПродукты: ${orderData.products}\nАдрес: ${orderData.address}`,
-    });
-  } catch (err) {
-    console.error("Ошибка при отправке заказа менеджеру:", err.message);
-  }
 }
 
 app.listen(PORT, () => {
