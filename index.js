@@ -153,6 +153,7 @@ app.post("/webhook", async (req, res) => {
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
       session.step = "waiting_for_command";
+      return res.status(200).send();
     } else if (message === "2") {
       await client.messages.create({
         to: from,
@@ -160,12 +161,14 @@ app.post("/webhook", async (req, res) => {
         contentSid: process.env.TEMPLATE_SID,
       });
       session.step = "waiting_for_command";
+      return res.status(200).send();
     } else {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
       });
+      return res.status(200).send();
     }
   } else if (session.step === "waiting_for_login") {
     session.login = message;
