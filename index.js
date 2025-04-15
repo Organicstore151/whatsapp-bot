@@ -22,26 +22,20 @@ function logUserAction(from, step, message) {
   const logLine = `[${new Date().toISOString()}] ${from} | ${step} | ${message}\n`;
   const logPath = path.join(__dirname, "user_behavior.log");
 
-  // Проверяем, существует ли файл, и если нет — создаём его
-  fs.access(logPath, fs.constants.F_OK, (err) => {
+  // Создание файла и директории, если они не существуют
+  fs.mkdir(path.dirname(logPath), { recursive: true }, (err) => {
     if (err) {
-      // Файл не существует, создаём его
-      fs.writeFile(logPath, "", (err) => {
-        if (err) {
-          console.error("❌ Ошибка при создании файла:", err.message);
-        } else {
-          console.log("📝 Файл для логов успешно создан.");
-        }
-      });
+      console.error("❌ Ошибка при создании директории:", err.message);
+      return;
     }
-  });
 
-  fs.appendFile(logPath, logLine, (err) => {
-    if (err) {
-      console.error("❌ Ошибка записи в лог:", err.message);
-    } else {
-      console.log("📝 Лог записан:", logLine.trim());
-    }
+    fs.appendFile(logPath, logLine, (err) => {
+      if (err) {
+        console.error("❌ Ошибка записи в лог:", err.message);
+      } else {
+        console.log("📝 Лог записан:", logLine.trim());
+      }
+    });
   });
 }
 
@@ -256,58 +250,36 @@ app.post("/webhook", async (req, res) => {
 
   else if (session.step === "waiting_for_address") {
     session.address = message;
+    session.step = "order_done";
 
-    const orderText = `🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "✅ Ваш заказ оформлен!\nМенеджер свяжется с вами для уточнения всех деталей.",
+    });
 
-    try {
-      await client.messages.create({
-        from: "whatsapp:+77718124038",
-        to: "whatsapp:+77774991275",
-        body: orderText,
-      });
-
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "✅ Спасибо! Ваш заказ принят. Мы свяжемся с вами в ближайшее время.",
-      });
-    } catch (err) {
-      console.error("❌ Ошибка отправки заказа менеджеру:", err.message);
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Не удалось отправить заказ менеджеру. Попробуйте позже.",
-      });
-    }
+    // Отправка менеджеру
+    const orderDetails = `Имя: ${session.name}\nПрепараты: ${session.items}\nАдрес доставки: ${session.address}\nФото рецепта: ${session.recipeImage || "Не прикреплено"}`;
+    await client.messages.create({
+      to: "+77774991275",
+      body: `Новый заказ: \n${orderDetails}`,
+    });
 
     delete sessions[from];
-    return res.status(200).send();
   }
 
-  return res.status(200).send();
+  res.status(200).send();
 });
 
-// Функция отправки PDF
-async function sendPDF(to, caption, mediaUrl) {
-  try {
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: caption,
-      mediaUrl: [mediaUrl],
-    });
-    console.log("📤 PDF отправлен:", mediaUrl);
-  } catch (err) {
-    console.error("❌ Ошибка при отправке PDF:", err.message);
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "❌ Не удалось загрузить документ. Попробуйте позже.",
-    });
-  }
+async function sendPDF(to, body, pdfUrl) {
+  await client.messages.create({
+    to,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    body,
+    mediaUrl: [pdfUrl],
+  });
 }
 
 app.listen(PORT, () => {
-  console.log(`👂 Слушаю на порту ${PORT}`);
+  console.log(`✅ Чат-бот работает на порту ${PORT}`);
 });
-
