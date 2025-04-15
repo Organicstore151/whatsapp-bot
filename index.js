@@ -94,7 +94,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "🛒 Пожалуйста, отправьте ваше ФИО:",
+        body: "🛒 Пожалуйста, отправьте ваше Имя или ID номер:",
       });
       session.step = "waiting_for_name";
     }
