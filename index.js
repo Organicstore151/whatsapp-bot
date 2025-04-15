@@ -1,5 +1,3 @@
-// Новый index.js с OpenAI-ассистентом, отвечающим как человек и вызывающим функции
-
 const express = require("express");
 const bodyParser = require("body-parser");
 const twilio = require("twilio");
@@ -36,14 +34,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const ASSISTANT_ID = "asst_TShYE87wBcrCfNAsdH9uK9ni";
 const threads = {}; // храним нити ассистента по пользователям
 
-// Основной webhook
 app.post("/webhook", async (req, res) => {
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
   const mediaUrl = req.body.MediaUrl0;
   logUserAction(from, "message_received", message);
 
-  // Создаем нить, если нет
   if (!threads[from]) {
     const thread = await openai.beta.threads.create();
     threads[from] = thread.id;
@@ -51,17 +47,24 @@ app.post("/webhook", async (req, res) => {
 
   const threadId = threads[from];
 
-  // Отправляем сообщение в ассистенту
-  await openai.beta.threads.messages.create(threadId, {
-    role: "user",
-    content: message,
-  });
+  // Добавим первое приветствие, если пользователь новый
+  const isNewUser = message.toLowerCase() === "привет" || message.toLowerCase() === "здравствуйте";
+  if (isNewUser) {
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: "Ты ассистент компании Peptides. Поздоровайся вежливо и расскажи, чем можешь помочь: узнать бонусы, оформить заказ, получить каталог препаратов и другое.",
+    });
+  } else {
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: message,
+    });
+  }
 
   const run = await openai.beta.threads.runs.create(threadId, {
     assistant_id: ASSISTANT_ID,
   });
 
-  // Ожидаем завершения run
   let runStatus;
   while (true) {
     runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
@@ -69,7 +72,6 @@ app.post("/webhook", async (req, res) => {
     await new Promise((r) => setTimeout(r, 1000));
   }
 
-  // Если ассистент хочет вызвать функцию
   if (runStatus.status === "requires_action") {
     const toolCall = runStatus.required_action.submit_tool_outputs.tool_calls[0];
     const { name, arguments: args } = toolCall.function;
@@ -93,19 +95,19 @@ app.post("/webhook", async (req, res) => {
       ],
     });
 
-    // Получаем финальный ответ
     const finalRun = await waitForCompletion(threadId, run.id);
     const messages = await openai.beta.threads.messages.list(threadId);
     const last = messages.data.find((m) => m.role === "assistant");
     await sendMessage(from, last.content[0].text.value);
-    return res.sendStatus(200);
+  } else {
+    const messages = await openai.beta.threads.messages.list(threadId);
+    const last = messages.data.find((m) => m.role === "assistant");
+    await sendMessage(from, last.content[0].text.value);
   }
 
-  // Простой ответ
-  const messages = await openai.beta.threads.messages.list(threadId);
-  const last = messages.data.find((m) => m.role === "assistant");
-  await sendMessage(from, last.content[0].text.value);
-  res.sendStatus(200);
+  // Вернём пустой XML чтобы избежать "OK"
+  const twiml = new twilio.twiml.MessagingResponse();
+  res.type("text/xml").send(twiml.toString());
 });
 
 async function waitForCompletion(threadId, runId) {
