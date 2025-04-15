@@ -17,7 +17,6 @@ const sessions = {};
 
 const logPath = path.join(__dirname, "user_behavior.log");
 
-// Функция логирования в Google Таблицу и файл
 function logUserAction(from, step, message) {
   const data = {
     date: new Date().toISOString(),
@@ -26,13 +25,11 @@ function logUserAction(from, step, message) {
     message,
   };
 
-  // Отправка в Google Таблицу
   axios
     .post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
 
-  // Локальное логирование в файл
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
 
   fs.access(logPath, fs.constants.F_OK, (err) => {
@@ -164,7 +161,7 @@ app.post("/webhook", async (req, res) => {
     });
   } else if (session.step === "waiting_for_password") {
     session.password = message;
-    session.step = "done";
+    session.step = "bonus_shown";
     try {
       const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
         login: session.login,
@@ -186,7 +183,7 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           to: from,
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
+          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг\n\nЧто вы хотите сделать дальше?\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером`,
         });
       } else {
         await client.messages.create({
@@ -194,6 +191,7 @@ app.post("/webhook", async (req, res) => {
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
           body: "⚠️ Не удалось получить бонусный баланс.",
         });
+        delete sessions[from];
       }
     } catch (err) {
       console.error("Ошибка при получении баланса:", err.message);
@@ -202,9 +200,37 @@ app.post("/webhook", async (req, res) => {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "❌ Проверьте логин и пароль.",
       });
+      delete sessions[from];
     }
-    delete sessions[from];
     return res.status(200).send();
+  } else if (session.step === "bonus_shown") {
+    if (message === "1") {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "💳 Чтобы снять бонусы, пожалуйста, свяжитесь с менеджером:\nhttps://wa.me/77774991275?text=Хочу+снять+бонусы",
+      });
+    } else if (message === "2") {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента:*",
+      });
+      session.step = "waiting_for_name";
+      return res.status(200).send();
+    } else if (message === "3") {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "💬 Связаться с менеджером: https://wa.me/77774991275",
+      });
+    } else {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "Пожалуйста, выберите:\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером",
+      });
+    }
   } else if (session.step === "waiting_for_name") {
     session.name = message;
     session.step = "waiting_for_items";
@@ -272,4 +298,5 @@ async function sendPDF(to, caption, mediaUrl) {
 app.listen(PORT, () => {
   console.log(`👂 Слушаю на порту ${PORT}`);
 });
+
 
