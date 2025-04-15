@@ -247,7 +247,7 @@ app.post("/webhook", async (req, res) => {
     `;
 
     await client.messages.create({
-      to: "whatsapp:+77774991275",  // Менеджерский номер для получения заказов
+      to: "+77774991275",  // Менеджерский номер для получения заказов
       from: from,
       body: orderMessage,
     });
