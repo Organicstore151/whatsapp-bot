@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const twilio = require("twilio");
 const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
@@ -14,6 +16,20 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 
 // Хранилище сессий пользователей
 const sessions = {};
+
+// Логирование действий пользователя
+function logUserAction(from, step, message) {
+  const logLine = `[${new Date().toISOString()}] ${from} | ${step} | ${message}\n`;
+  const logPath = path.join(__dirname, "user_behavior.log");
+
+  fs.appendFile(logPath, logLine, (err) => {
+    if (err) {
+      console.error("❌ Ошибка записи в лог:", err.message);
+    } else {
+      console.log("📝 Лог записан:", logLine.trim());
+    }
+  });
+}
 
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", req.body);
@@ -28,10 +44,12 @@ app.post("/webhook", async (req, res) => {
       contentSid: process.env.TEMPLATE_SID,
     });
     sessions[from] = { step: "waiting_for_command" };
+    logUserAction(from, "new_user", message);
     return res.status(200).send();
   }
 
   const session = sessions[from];
+  logUserAction(from, session.step, message);
 
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
