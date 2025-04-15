@@ -26,12 +26,10 @@ function logUserAction(from, step, message) {
     message,
   };
 
-  // Отправка в Google Таблицу
   axios.post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
 
-  // Локальное логирование в файл
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
 
   fs.access(logPath, fs.constants.F_OK, (err) => {
@@ -70,14 +68,22 @@ app.post("/webhook", async (req, res) => {
   const session = sessions[from];
   logUserAction(from, session.step, message);
 
-  // Сброс текущего процесса при нажатии любой кнопки
-  if (message === "Каталог препаратов" || message === "Прайс-лист" || message === "Информация о продукции" || message === "Сделать заказ" || message === "Связаться с менеджером") {
-    session.step = "waiting_for_command";  // Сбрасываем на начальный шаг
+  // Сброс процесса, если пользователь в процессе и нажал другие кнопки (кроме "Сделать заказ")
+  const interruptingMessages = [
+    "Каталог препаратов",
+    "Прайс-лист",
+    "Информация о продукции",
+    "Связаться с менеджером"
+  ];
+
+  if (session.step !== "waiting_for_command" && interruptingMessages.includes(message)) {
+    session.step = "waiting_for_command";
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "🔄 Ваш текущий процесс был завершен. Вы можете выбрать новый вариант.",
+      body: "🔄 Ваш предыдущий процесс был завершен. Вы можете выбрать новый вариант.",
     });
+    return res.status(200).send();
   }
 
   if (mediaUrl) {
