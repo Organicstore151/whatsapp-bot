@@ -1,311 +1,146 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const twilio = require("twilio");
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
-require("dotenv").config();
-
-const { OpenAI } = require("openai");
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// index.js
+require('dotenv').config();
+const express = require('express');
+const { MessagingResponse } = require('twilio').twiml;
+const axios = require('axios');
+const fs = require('fs');
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const { OpenAI } = require('openai');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(express.urlencoded({ extended: false }));
 
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const sessions = {};
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const logPath = path.join(__dirname, "user_behavior.log");
+function logBehavior(phone, step, message) {
+  const log = `${new Date().toISOString()} | ${phone} | ${step} | ${message}\n`;
+  fs.appendFileSync('user_behavior.log', log);
+  console.log('📝 Лог записан:', log.trim());
+}
 
-// Функция логирования в Google Таблицу и файл
-function logUserAction(from, step, message) {
-  const data = {
-    date: new Date().toISOString(),
-    phone: from,
-    step,
-    message,
-  };
-
-  // Отправка в Google Таблицу
-  axios.post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
-    .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
-    .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
-
-  // Локальное логирование в файл
-  const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
-
-  fs.access(logPath, fs.constants.F_OK, (err) => {
-    if (err) {
-      fs.writeFile(logPath, logLine, (err) => {
-        if (err) console.error("❌ Ошибка при создании файла:", err.message);
-        else console.log("📝 Файл логов создан и лог записан.");
-      });
-    } else {
-      fs.appendFile(logPath, logLine, (err) => {
-        if (err) console.error("❌ Ошибка записи в лог:", err.message);
-        else console.log("📝 Лог записан:", logLine.trim());
-      });
-    }
+async function handleGPTFallback(message, phone) {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Ты вежливый и профессиональный помощник интернет-магазина Peptides. Отвечай кратко и по делу. Предлагай клиенту узнать бонусный баланс, отправить каталог, оформить заказ или связать с менеджером. Для оформления заказа спроси ФИО и ID клиента. Клиент может прикрепить фото рецепта.',
+      },
+      { role: 'user', content: message },
+    ],
   });
+
+  return completion.choices[0].message.content;
 }
 
-async function getAssistantReply(userMessage) {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты вежливый и дружелюбный ассистент интернет-магазина Peptides. Ты помогаешь клиентам узнать о продукции, бонусах, доставке и заказах. Если пользователь хочет, предложи:\n— узнать бонусы\n— получить каталог\n— оформить заказ\n— связаться с менеджером.\nОтвечай кратко, понятно и по делу.",
-        },
-        { role: "user", content: userMessage },
-      ],
-    });
-
-    return completion.choices[0].message.content;
-  } catch (error) {
-    console.error("❌ Ошибка GPT:", error.message);
-    return null;
-  }
-}
-
-app.post("/webhook", async (req, res) => {
-  console.log("📩 Входящее сообщение:", req.body);
-
+app.post('/incoming', async (req, res) => {
+  const twiml = new MessagingResponse();
+  const msg = twiml.message();
   const from = req.body.From;
-  const message = (req.body.Body || "").trim();
-  const mediaUrl = req.body.MediaUrl0;
+  const body = req.body.Body?.trim();
+  const phone = from.replace('whatsapp:', '');
 
-  if (!sessions[from]) {
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      contentSid: process.env.TEMPLATE_SID,
-    });
-    sessions[from] = { step: "waiting_for_command" };
-    logUserAction(from, "new_user", message);
-    return res.status(200).send();
-  }
+  if (!sessions[phone]) sessions[phone] = { step: null, data: {} };
+  const session = sessions[phone];
 
-  const session = sessions[from];
-  logUserAction(from, session.step, message);
-
-  if (mediaUrl) {
-    session.recipeImage = mediaUrl;
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.",
-    });
-  }
-
-  if (session.step === "waiting_for_command") {
-    if (message === "Узнать баланс бонусов") {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, отправьте ваш ID (логин):",
-      });
-      session.step = "waiting_for_login";
-    } else if (message === "Информация о продукции") {
-      try {
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e",
-        });
-      } catch (err) {
-        console.error("Ошибка при отправке шаблона:", err.message);
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: "❌ Не удалось загрузить каталог. Попробуйте позже.",
-        });
-      }
-    } else if (message === "Каталог препаратов") {
-      await sendPDF(from, "🧾 Ознакомьтесь с нашим каталогом препаратов📥", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
-    } else if (message === "Курс лечения") {
-      await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
-    } else if (message === "Прайс-лист") {
-      await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
-    } else if (message === "Сделать заказ") {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\nЭто нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:",
-      });
-      session.step = "waiting_for_name";
-    } else if (message === "Связаться с менеджером") {
-      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
-      });
-    } else {
-      session.step = "unrecognized_input";
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
-      });
-    }
-  } else if (session.step === "unrecognized_input") {
-    if (message === "1") {
-      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
-      });
-      session.step = "waiting_for_command";
-    } else if (message === "2") {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        contentSid: process.env.TEMPLATE_SID,
-      });
-      session.step = "waiting_for_command";
-    } else {
-      const reply = await getAssistantReply(message);
-
-      if (reply) {
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: `🤖 ${reply}\n\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться в начало`,
-        });
-      } else {
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: "🤖 Извините, я не понял. Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
-        });
-      }
-    }
-  } else if (session.step === "waiting_for_login") {
-    session.login = message;
-    session.step = "waiting_for_password";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "Теперь введите пароль:",
-    });
-  } else if (session.step === "waiting_for_password") {
-    session.password = message;
-    session.step = "done";
-    try {
-      const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
-        login: session.login,
-        password: session.password,
-      });
-
-      const token = authResponse.data.token;
-
-      const bonusResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const balanceArray = bonusResponse.data?.current?.balance;
-      const bonusAmount = Array.isArray(balanceArray) && balanceArray[0]?.amount !== undefined
-        ? balanceArray[0].amount
-        : null;
-
-      if (bonusAmount !== null) {
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
-        });
-      } else {
-        await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: "⚠️ Не удалось получить бонусный баланс.",
-        });
-      }
-    } catch (err) {
-      console.error("Ошибка при получении баланса:", err.message);
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Проверьте логин и пароль.",
-      });
-    }
-    delete sessions[from];
-    return res.status(200).send();
-  } else if (session.step === "waiting_for_name") {
-    session.name = message;
-    session.step = "waiting_for_items";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*✍️ Пожалуйста, отправьте список препаратов или прикрепите фото рецепта:*",
-    });
-  } else if (session.step === "waiting_for_items") {
-    session.items = message;
-    session.step = "waiting_for_address";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📦 Укажите адрес доставки:*",
-    });
-  } else if (session.step === "waiting_for_address") {
-    session.address = message;
-    const orderText = `🛒 Новый заказ:\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
-    try {
-      await client.messages.create({
-        from: "whatsapp:+77718124038",
-        to: "whatsapp:+77774991275",
-        body: orderText,
-      });
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "✅ Спасибо! Ваш заказ принят.",
-      });
-    } catch (err) {
-      console.error("❌ Ошибка отправки заказа:", err.message);
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Не удалось отправить заказ. Попробуйте позже.",
-      });
-    }
-    delete sessions[from];
-    return res.status(200).send();
-  }
-
-  return res.status(200).send();
-});
-
-async function sendPDF(to, caption, mediaUrl) {
   try {
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: caption,
-      mediaUrl: [mediaUrl],
-    });
-    console.log("📤 PDF отправлен:", mediaUrl);
-  } catch (err) {
-    console.error("❌ Ошибка при отправке PDF:", err.message);
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "❌ Не удалось загрузить документ.",
-    });
-  }
-}
+    if (body.toLowerCase().includes('баланс')) {
+      session.step = 'awaiting_id';
+      msg.body('Пожалуйста, введите ваш ID клиента:');
+      logBehavior(from, 'request_id', body);
+    } else if (session.step === 'awaiting_id') {
+      session.data.id = body;
+      session.step = 'awaiting_password';
+      msg.body('Теперь введите ваш пароль:');
+      logBehavior(from, 'request_password', body);
+    } else if (session.step === 'awaiting_password') {
+      session.data.password = body;
+      try {
+        const auth = await axios.post('https://lk.peptides1.ru/api/auth/sign-in', {
+          login: session.data.id,
+          password: session.data.password,
+        });
+        const token = auth.data.token;
+        const closing = await axios.get('https://lk.peptides1.ru/api/partners/current/closing-info', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const amount = closing.data.balance[0].amount;
+        msg.body(`Ваш бонусный баланс: ${amount} ₸`);
+        logBehavior(from, 'bonus_response', `${amount} ₸`);
+        sessions[phone] = { step: null, data: {} };
+      } catch (e) {
+        msg.body('Ошибка при входе. Проверьте ID и пароль.');
+        logBehavior(from, 'login_failed', body);
+      }
+    } else if (body.toLowerCase().includes('каталог')) {
+      msg.media('https://organicstore151.github.io/whatsapp-catalog/catalog.pdf');
+      msg.body('Вот каталог продукции 📄');
+      logBehavior(from, 'send_catalog', body);
+    } else if (body.toLowerCase().includes('курс')) {
+      msg.media('https://organicstore151.github.io/comples/therapy.pdf');
+      msg.body('Вот рекомендованный курс лечения 📄');
+      logBehavior(from, 'send_course', body);
+    } else if (body.toLowerCase().includes('прайс')) {
+      msg.media('https://organicstore151.github.io/price/price.pdf');
+      msg.body('Вот прайс-лист 📄');
+      logBehavior(from, 'send_price', body);
+    } else if (body.toLowerCase().includes('заказ')) {
+      session.step = 'order_name';
+      msg.body('Пожалуйста, отправьте ваше ФИО:');
+      logBehavior(from, 'order_start', body);
+    } else if (session.step === 'order_name') {
+      session.data.name = body;
+      session.step = 'order_id';
+      msg.body('Укажите ваш ID клиента:');
+      logBehavior(from, 'order_name', body);
+    } else if (session.step === 'order_id') {
+      session.data.clientId = body;
+      session.step = 'order_products';
+      msg.body('Теперь напишите список препаратов:');
+      logBehavior(from, 'order_id', body);
+    } else if (session.step === 'order_products') {
+      session.data.products = body;
+      session.step = 'order_address';
+      msg.body('Укажите адрес доставки:');
+      logBehavior(from, 'order_products', body);
+    } else if (session.step === 'order_address') {
+      session.data.address = body;
+      const text = `Новый заказ:\nФИО: ${session.data.name}\nID клиента: ${session.data.clientId}\nПрепараты: ${session.data.products}\nАдрес: ${session.data.address}`;
 
-app.listen(PORT, () => {
-  console.log(`👂 Слушаю на порту ${PORT}`);
+      await axios.post('https://api.twilio.com/2010-04-01/Accounts/' + process.env.TWILIO_ACCOUNT_SID + '/Messages.json',
+        new URLSearchParams({
+          To: 'whatsapp:' + process.env.MANAGER_PHONE,
+          From: process.env.TWILIO_WHATSAPP_NUMBER,
+          Body: text,
+        }),
+        {
+          auth: {
+            username: process.env.TWILIO_ACCOUNT_SID,
+            password: process.env.TWILIO_AUTH_TOKEN,
+          },
+        }
+      );
+
+      msg.body('Ваш заказ принят! Менеджер скоро с вами свяжется.');
+      logBehavior(from, 'order_complete', text);
+      sessions[phone] = { step: null, data: {} };
+    } else {
+      const gptResponse = await handleGPTFallback(body, from);
+      msg.body(gptResponse);
+      logBehavior(from, 'unrecognized_input', body);
+    }
+  } catch (err) {
+    console.error('❌ Ошибка:', err);
+    msg.body('Произошла ошибка. Попробуйте позже.');
+    logBehavior(from, 'error', body);
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/xml' });
+  res.end(twiml.toString());
 });
 
+app.listen(process.env.PORT || 3000, () => {
+  console.log('🚀 Сервер запущен на порту', process.env.PORT || 3000);
+});
