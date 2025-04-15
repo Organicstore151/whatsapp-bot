@@ -70,6 +70,16 @@ app.post("/webhook", async (req, res) => {
   const session = sessions[from];
   logUserAction(from, session.step, message);
 
+  // Сброс текущего процесса при нажатии любой кнопки
+  if (message === "Каталог препаратов" || message === "Прайс-лист" || message === "Информация о продукции" || message === "Сделать заказ" || message === "Связаться с менеджером") {
+    session.step = "waiting_for_command";  // Сбрасываем на начальный шаг
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "🔄 Ваш текущий процесс был завершен. Вы можете выбрать новый вариант.",
+    });
+  }
+
   if (mediaUrl) {
     session.recipeImage = mediaUrl;
     await client.messages.create({
@@ -191,83 +201,31 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           to: from,
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: "⚠️ Не удалось получить бонусный баланс.",
+          body: "❌ Не удалось получить данные о бонусах.",
         });
       }
     } catch (err) {
-      console.error("Ошибка при получении баланса:", err.message);
+      console.error("Ошибка при получении данных о бонусах:", err.message);
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Проверьте логин и пароль.",
+        body: "❌ Ошибка при авторизации. Попробуйте снова.",
       });
     }
-    delete sessions[from];
-    return res.status(200).send();
-  } else if (session.step === "waiting_for_name") {
-    session.name = message;
-    session.step = "waiting_for_items";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*✍️ Пожалуйста, отправьте список препаратов, которые вы хотите заказать.*\n_Вы также можете прикрепить фото рецепта или написать названия вручную:_",
-    });
-  } else if (session.step === "waiting_for_items") {
-    session.items = message;
-    session.step = "waiting_for_address";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📦 Пожалуйста, укажите адрес доставки.*\n_Наш менеджер свяжется с вами в ближайшее время, чтобы подтвердить заказ, уточнить удобное время и способ доставки, а также согласовать оплату:_",
-    });
-  } else if (session.step === "waiting_for_address") {
-    session.address = message;
-    const orderText = `🛒 Новый заказ:\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
-    try {
-      await client.messages.create({
-        from: "whatsapp:+77718124038",
-        to: "whatsapp:+77774991275",
-        body: orderText,
-      });
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "✅ Спасибо! Ваш заказ принят.",
-      });
-    } catch (err) {
-      console.error("❌ Ошибка отправки заказа:", err.message);
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Не удалось отправить заказ. Попробуйте позже.",
-      });
-    }
-    delete sessions[from];
-    return res.status(200).send();
   }
 
-  return res.status(200).send();
+  res.status(200).send();
 });
-
-async function sendPDF(to, caption, mediaUrl) {
-  try {
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: caption,
-      mediaUrl: [mediaUrl],
-    });
-    console.log("📤 PDF отправлен:", mediaUrl);
-  } catch (err) {
-    console.error("❌ Ошибка при отправке PDF:", err.message);
-    await client.messages.create({
-      to,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "❌ Не удалось загрузить документ.",
-    });
-  }
-}
 
 app.listen(PORT, () => {
-  console.log(`👂 Слушаю на порту ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
+
+async function sendPDF(from, message, url) {
+  await client.messages.create({
+    to: from,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    body: message,
+    mediaUrl: url,
+  });
+}
