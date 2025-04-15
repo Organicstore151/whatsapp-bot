@@ -13,179 +13,261 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const sessions = {};
+
 const logPath = path.join(__dirname, "user_behavior.log");
 
+// Функция логирования в Google Таблицу и файл
 function logUserAction(from, step, message) {
-  const data = {
-    date: new Date().toISOString(),
-    phone: from,
-    step,
-    message,
-  };
-  axios.post(process.env.GOOGLE_SHEET_LOG_URL, data).catch(() => {});
-  const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
-  fs.appendFile(logPath, logLine, () => {});
+const data = {
+date: new Date().toISOString(),
+phone: from,
+step,
+message,
+};
+
+// Отправка в Google Таблицу
+axios.post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
+.then(() => console.log("📤 Лог отправлен в Google Таблицу"))
+.catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
+
+// Локальное логирование в файл
+const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
+
+fs.access(logPath, fs.constants.F_OK, (err) => {
+if (err) {
+fs.writeFile(logPath, logLine, (err) => {
+if (err) console.error("❌ Ошибка при создании файла:", err.message);
+else console.log("📝 Файл логов создан и лог записан.");
+});
+} else {
+fs.appendFile(logPath, logLine, (err) => {
+if (err) console.error("❌ Ошибка записи в лог:", err.message);
+else console.log("📝 Лог записан:", logLine.trim());
+});
+}
+});
 }
 
-// OpenAI SDK
-const { OpenAI } = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const ASSISTANT_ID = "asst_TShYE87wBcrCfNAsdH9uK9ni";
-const threads = {}; // храним нити ассистента по пользователям
-
-// Основной webhook
 app.post("/webhook", async (req, res) => {
-  const from = req.body.From;
-  const message = (req.body.Body || "").trim();
-  const mediaUrl = req.body.MediaUrl0;
-  logUserAction(from, "message_received", message);
+console.log("📩 Входящее сообщение:", req.body);
 
-  if (!message) {
-    await sendMessage(from, "❓ Пожалуйста, введите сообщение.");
-    return res.send();  // Пустой ответ
-  }
+const from = req.body.From;
+const message = (req.body.Body || "").trim();
+const mediaUrl = req.body.MediaUrl0;
 
-  // Создаем нить, если нет
-  if (!threads[from]) {
-    const thread = await openai.beta.threads.create();
-    threads[from] = thread.id;
-  }
+if (!sessions[from]) {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+contentSid: process.env.TEMPLATE_SID,
+});
+sessions[from] = { step: "waiting_for_command" };
+logUserAction(from, "new_user", message);
+return res.status(200).send();
+}
 
-  const threadId = threads[from];
+const session = sessions[from];
+logUserAction(from, session.step, message);
 
-  // Отправляем сообщение в ассистенту
-  await openai.beta.threads.messages.create(threadId, {
-    role: "user",
-    content: message,
-  });
+if (mediaUrl) {
+session.recipeImage = mediaUrl;
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.",
+});
+}
 
-  const run = await openai.beta.threads.runs.create(threadId, {
-    assistant_id: ASSISTANT_ID,
-  });
-
-  // Ожидаем завершения run
-  let runStatus;
-  while (true) {
-    runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-    if (runStatus.status === "completed" || runStatus.status === "requires_action") break;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-
-  // Если ассистент хочет вызвать функцию
-  if (runStatus.status === "requires_action") {
-    const toolCall = runStatus.required_action.submit_tool_outputs.tool_calls[0];
-    const { name, arguments: args } = toolCall.function;
-    const parsedArgs = JSON.parse(args);
-
-    let result = "";
-    if (name === "getBonusBalance") {
-      result = await getBonusBalance(parsedArgs.login, parsedArgs.password);
-    } else if (name === "sendCatalog") {
-      result = await sendPDF(from, "🧾 Каталог препаратов", process.env.CATALOG_URL);
-    } else if (name === "sendOrder") {
-      result = await sendOrder(parsedArgs, from);
-    }
-
-    await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, {
-      tool_outputs: [
-        {
-          tool_call_id: toolCall.id,
-          output: result,
-        },
-      ],
-    });
-
-    // Получаем финальный ответ
-    const finalRun = await waitForCompletion(threadId, run.id);
-    const messages = await openai.beta.threads.messages.list(threadId);
-    const last = messages.data.find((m) => m.role === "assistant");
-    
-    if (!last || !last.content || !last.content[0] || !last.content[0].text || !last.content[0].text.value) {
-      await sendMessage(from, "❌ Проблема с ответом. Попробуйте снова.");
-      return res.send();  // Пустой ответ
-    }
-
-    await sendMessage(from, last.content[0].text.value);
-    return res.send();  // Пустой ответ
-  }
-
-  // Простой ответ
-  const messages = await openai.beta.threads.messages.list(threadId);
-  const last = messages.data.find((m) => m.role === "assistant");
-  
-  if (!last || !last.content || !last.content[0] || !last.content[0].text || !last.content[0].text.value) {
-    await sendMessage(from, "❌ Проблема с ответом. Попробуйте снова.");
-    return res.send();  // Пустой ответ
-  }
-
-  await sendMessage(from, last.content[0].text.value);
-  res.send();  // Пустой ответ
+if (session.step === "waiting_for_command") {
+if (message === "Узнать баланс бонусов") {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "Пожалуйста, отправьте ваш ID (логин):",
+});
+session.step = "waiting_for_login";
+} else if (message === "Информация о продукции") {
+try {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+contentSid: "HXc07f9a56c952dd93c5a4308883e00a7e",
+});
+} catch (err) {
+console.error("Ошибка при отправке шаблона:", err.message);
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "❌ Не удалось загрузить каталог. Попробуйте позже.",
+});
+}
+} else if (message === "Каталог препаратов") {
+await sendPDF(from, "🧾 Ознакомьтесь с нашим каталогом препаратов📥", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
+} else if (message === "Курс лечения") {
+await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
+} else if (message === "Прайс-лист") {
+await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
+} else if (message === "Сделать заказ") {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\nЭто нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:",
+});
+session.step = "waiting_for_name";
+} else if (message === "Связаться с менеджером") {
+const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+});
+} else {
+session.step = "unrecognized_input";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+});
+}
+} else if (session.step === "unrecognized_input") {
+if (message === "1") {
+const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+});
+session.step = "waiting_for_command";
+} else if (message === "2") {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+contentSid: process.env.TEMPLATE_SID,
+});
+session.step = "waiting_for_command";
+} else {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
+});
+}
+} else if (session.step === "waiting_for_login") {
+session.login = message;
+session.step = "waiting_for_password";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "Теперь введите пароль:",
+});
+} else if (session.step === "waiting_for_password") {
+session.password = message;
+session.step = "done";
+try {
+const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+login: session.login,
+password: session.password,
 });
 
-async function waitForCompletion(threadId, runId) {
-  while (true) {
-    const run = await openai.beta.threads.runs.retrieve(threadId, runId);
-    if (run.status === "completed") return run;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
+const token = authResponse.data.token;
+
+const bonusResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
+headers: { Authorization: `Bearer ${token}` },
+});
+
+const balanceArray = bonusResponse.data?.current?.balance;
+const bonusAmount = Array.isArray(balanceArray) && balanceArray[0]?.amount !== undefined
+? balanceArray[0].amount
+: null;
+
+if (bonusAmount !== null) {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
+});
+} else {
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "⚠️ Не удалось получить бонусный баланс.",
+});
+}
+} catch (err) {
+console.error("Ошибка при получении баланса:", err.message);
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "❌ Проверьте логин и пароль.",
+});
+}
+delete sessions[from];
+return res.status(200).send();
+} else if (session.step === "waiting_for_name") {
+session.name = message;
+session.step = "waiting_for_items";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "*✍️ Пожалуйста, отправьте список препаратов или прикрепите фото рецепта:*",
+});
+} else if (session.step === "waiting_for_items") {
+session.items = message;
+session.step = "waiting_for_address";
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "*📦 Укажите адрес доставки:*",
+});
+} else if (session.step === "waiting_for_address") {
+session.address = message;
+const orderText = `🛒 Новый заказ:\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
+try {
+await client.messages.create({
+from: "whatsapp:+77718124038",
+to: "whatsapp:+77774991275",
+body: orderText,
+});
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "✅ Спасибо! Ваш заказ принят.",
+});
+} catch (err) {
+console.error("❌ Ошибка отправки заказа:", err.message);
+await client.messages.create({
+to: from,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "❌ Не удалось отправить заказ. Попробуйте позже.",
+});
+}
+delete sessions[from];
+return res.status(200).send();
 }
 
-async function sendMessage(to, body) {
-  await client.messages.create({
-    to,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body,
-  });
-}
+return res.status(200).send();
+});
 
 async function sendPDF(to, caption, mediaUrl) {
-  await client.messages.create({
-    to,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body: caption,
-    mediaUrl: [mediaUrl],
-  });
-  return "📎 Каталог отправлен.";
+try {
+await client.messages.create({
+to,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: caption,
+mediaUrl: [mediaUrl],
+});
+console.log("📤 PDF отправлен:", mediaUrl);
+} catch (err) {
+console.error("❌ Ошибка при отправке PDF:", err.message);
+await client.messages.create({
+to,
+messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+body: "❌ Не удалось загрузить документ.",
+});
 }
-
-async function getBonusBalance(login, password) {
-  try {
-    const auth = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", { login, password });
-    const token = auth.data.token;
-    const closing = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const amount = closing.data?.current?.balance?.[0]?.amount;
-    return amount ? `🎉 Ваш бонусный баланс: ${amount} тг` : "❌ Не удалось получить баланс.";
-  } catch {
-    return "❌ Неверные логин или пароль.";
-  }
-}
-
-async function sendOrder(data, from) {
-  const orderText = `🛒 Новый заказ:\n👤 Имя: ${data.name}\n📋 Препараты: ${data.items}\n🏠 Адрес: ${data.address}\n📞 Клиент: ${from}`;
-
-  try {
-    // Используем правильные переменные окружения
-    const messageResponse = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER, // Получаем номер отправителя из .env
-      to: "whatsapp:" + process.env.MANAGER_PHONE, // Получаем номер менеджера из .env
-      body: orderText,
-    });
-
-    // Проверка на успешную отправку
-    if (messageResponse.sid) {
-      return "✅ Заказ отправлен менеджеру.";
-    } else {
-      return "❌ Не удалось отправить заказ менеджеру.";
-    }
-  } catch (error) {
-    console.error("Ошибка при отправке заказа:", error);
-    return "❌ Не удалось отправить заказ менеджеру.";
-  }
 }
 
 app.listen(PORT, () => {
-  console.log("👂 Бот слушает на порту", PORT);
+console.log(`👂 Слушаю на порту ${PORT}`);
 });
