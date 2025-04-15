@@ -41,6 +41,11 @@ app.post("/webhook", async (req, res) => {
   const mediaUrl = req.body.MediaUrl0;
   logUserAction(from, "message_received", message);
 
+  if (!message) {
+    await sendMessage(from, "❓ Пожалуйста, введите сообщение.");
+    return res.send();  // Пустой ответ
+  }
+
   // Создаем нить, если нет
   if (!threads[from]) {
     const thread = await openai.beta.threads.create();
@@ -95,6 +100,12 @@ app.post("/webhook", async (req, res) => {
     const finalRun = await waitForCompletion(threadId, run.id);
     const messages = await openai.beta.threads.messages.list(threadId);
     const last = messages.data.find((m) => m.role === "assistant");
+    
+    if (!last || !last.content || !last.content[0] || !last.content[0].text || !last.content[0].text.value) {
+      await sendMessage(from, "❌ Проблема с ответом. Попробуйте снова.");
+      return res.send();  // Пустой ответ
+    }
+
     await sendMessage(from, last.content[0].text.value);
     return res.send();  // Пустой ответ
   }
@@ -102,6 +113,12 @@ app.post("/webhook", async (req, res) => {
   // Простой ответ
   const messages = await openai.beta.threads.messages.list(threadId);
   const last = messages.data.find((m) => m.role === "assistant");
+  
+  if (!last || !last.content || !last.content[0] || !last.content[0].text || !last.content[0].text.value) {
+    await sendMessage(from, "❌ Проблема с ответом. Попробуйте снова.");
+    return res.send();  // Пустой ответ
+  }
+
   await sendMessage(from, last.content[0].text.value);
   res.send();  // Пустой ответ
 });
