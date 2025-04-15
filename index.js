@@ -6,6 +6,11 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 
+const { OpenAI } = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Ваш ключ API OpenAI
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -47,6 +52,19 @@ function logUserAction(from, step, message) {
       });
     }
   });
+}
+
+async function getAIResponse(message) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: message }],
+    });
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("Ошибка при запросе к OpenAI:", error.message);
+    return "❌ Произошла ошибка при обработке вашего запроса. Попробуйте позже.";
+  }
 }
 
 app.post("/webhook", async (req, res) => {
@@ -147,11 +165,14 @@ app.post("/webhook", async (req, res) => {
       });
       session.step = "waiting_for_command";
     } else {
+      // В случае, если пользователь не выбрал 1 или 2, отправляем запрос к ИИ
+      const aiResponse = await getAIResponse(message);
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
+        body: aiResponse,
       });
+      session.step = "waiting_for_command";  // Возврат к командному шагу после ответа от ИИ
     }
   } else if (session.step === "waiting_for_login") {
     session.login = message;
@@ -271,3 +292,4 @@ async function sendPDF(to, caption, mediaUrl) {
 app.listen(PORT, () => {
   console.log(`👂 Слушаю на порту ${PORT}`);
 });
+
