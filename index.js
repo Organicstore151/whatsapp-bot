@@ -5,6 +5,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
+const { OpenAI } = require('openai'); // Подключаем OpenAI SDK
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,25 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const sessions = {};
 
 const logPath = path.join(__dirname, "user_behavior.log");
+
+// Инициализация OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Используем ключ из .env
+});
+
+// Функция для запроса к GPT-3.5
+async function askGPT(question) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: question }],
+    });
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('Ошибка при запросе к OpenAI:', error);
+    return 'Извините, произошла ошибка.';
+  }
+}
 
 function logUserAction(from, step, message) {
   const data = {
@@ -137,12 +157,14 @@ app.post("/webhook", async (req, res) => {
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     } else {
-      session.step = "unrecognized_input";
+      // Новый блок для обработки запросов в GPT-3.5
+      const responseFromGPT = await askGPT(message);
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+        body: responseFromGPT,
       });
+      return res.status(200).send();
     }
   } else if (session.step === "unrecognized_input") {
     if (message === "1") {
@@ -225,7 +247,7 @@ app.post("/webhook", async (req, res) => {
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📦 Пожалуйста, отправьте список препаратов, которые хотите заказать.*\n_Вы также можете прикрепить фото рецепта или написать названия вручную:_",
+      body: "*🛒 Укажите список препаратов для заказа:*",
     });
   } else if (session.step === "waiting_for_products") {
     session.products = message;
@@ -233,44 +255,34 @@ app.post("/webhook", async (req, res) => {
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📍 Пожалуйста, укажите адрес доставки.*\n_Наш менеджер свяжется с вами в ближайшее время, чтобы подтвердить заказ, уточнить удобное время и способ доставки, а также согласовать оплату:_",
+      body: "*🏠 Укажите адрес доставки:*",
     });
   } else if (session.step === "waiting_for_address") {
     session.address = message;
-    session.step = "waiting_for_command";
-
-    const orderMessage = `📥 *Новый заказ!*\n\n👤 Клиент: ${session.clientName}\n📦 Препараты: ${session.products}\n📍 Адрес: ${session.address}\n📸 Фото рецепта: ${session.recipeImage || "не предоставлено"}`;
-
-    await client.messages.create({
-      to: "whatsapp:+77774991275",
-      from: from,
-      body: orderMessage,
-    });
-
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "✅ Ваш заказ отправлен менеджеру! Он скоро с вами свяжется.",
+      body: "*✅ Ваш заказ принят. Ожидайте подтверждения от менеджера.*",
+    });
+    await client.messages.create({
+      to: "+77774991275",
+      body: `Новый заказ!\nФИО: ${session.clientName}\nПрепараты: ${session.products}\nАдрес: ${session.address}\nКонтактный номер: ${from}`,
     });
 
-    delete session.clientName;
-    delete session.products;
-    delete session.address;
-    delete session.recipeImage;
+    session.step = "waiting_for_command";
   }
-
-  res.status(200).send();
+  return res.status(200).send();
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-async function sendPDF(from, message, url) {
-  await client.messages.create({
-    to: from,
+function sendPDF(to, body, url) {
+  return client.messages.create({
+    to,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body: message,
-    mediaUrl: url,
+    body,
+    mediaUrl: [url],
   });
 }
+
+app.listen(PORT, () => {
+  console.log(`✅ Сервер работает на порту ${PORT}`);
+});
