@@ -17,6 +17,7 @@ const sessions = {};
 
 const logPath = path.join(__dirname, "user_behavior.log");
 
+// Функция логирования в Google Таблицу и файл
 function logUserAction(from, step, message) {
   const data = {
     date: new Date().toISOString(),
@@ -25,10 +26,12 @@ function logUserAction(from, step, message) {
     message,
   };
 
+  // Отправка в Google Таблицу
   axios.post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
 
+  // Локальное логирование в файл
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
 
   fs.access(logPath, fs.constants.F_OK, (err) => {
@@ -66,23 +69,6 @@ app.post("/webhook", async (req, res) => {
 
   const session = sessions[from];
   logUserAction(from, session.step, message);
-
-  const interruptingMessages = [
-    "Каталог препаратов",
-    "Прайс-лист",
-    "Информация о продукции",
-    "Связаться с менеджером"
-  ];
-
-  if (session.step !== "waiting_for_command" && interruptingMessages.includes(message)) {
-    session.step = "waiting_for_command";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "🔄 Ваш предыдущий процесс был завершен. Вы можете выбрать новый вариант.",
-    });
-    return res.status(200).send();
-  }
 
   if (mediaUrl) {
     session.recipeImage = mediaUrl;
@@ -126,7 +112,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\n_Это нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:_",
+        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\nЭто нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:",
       });
       session.step = "waiting_for_name";
     } else if (message === "Связаться с менеджером") {
@@ -153,7 +139,6 @@ app.post("/webhook", async (req, res) => {
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
       session.step = "waiting_for_command";
-      return res.status(200).send();
     } else if (message === "2") {
       await client.messages.create({
         to: from,
@@ -161,14 +146,12 @@ app.post("/webhook", async (req, res) => {
         contentSid: process.env.TEMPLATE_SID,
       });
       session.step = "waiting_for_command";
-      return res.status(200).send();
     } else {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
       });
-      return res.status(200).send();
     }
   } else if (session.step === "waiting_for_login") {
     session.login = message;
@@ -208,70 +191,83 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           to: from,
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: "❌ Не удалось получить данные о бонусах.",
+          body: "⚠️ Не удалось получить бонусный баланс.",
         });
       }
     } catch (err) {
-      console.error("Ошибка при получении данных о бонусах:", err.message);
+      console.error("Ошибка при получении баланса:", err.message);
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "❌ Ошибка при авторизации. Попробуйте снова.",
+        body: "❌ Проверьте логин и пароль.",
       });
     }
+    delete sessions[from];
+    return res.status(200).send();
   } else if (session.step === "waiting_for_name") {
-    session.clientName = message;
-    session.step = "waiting_for_products";
+    session.name = message;
+    session.step = "waiting_for_items";
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📦 Пожалуйста, отправьте список препаратов, которые хотите заказать.*\n_Вы также можете прикрепить фото рецепта или написать названия вручную:_",
+      body: "*✍️ Пожалуйста, отправьте список препаратов или прикрепите фото рецепта:*",
     });
-  } else if (session.step === "waiting_for_products") {
-    session.products = message;
+  } else if (session.step === "waiting_for_items") {
+    session.items = message;
     session.step = "waiting_for_address";
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "*📍 Пожалуйста, укажите адрес доставки.*\n_Наш менеджер свяжется с вами в ближайшее время, чтобы подтвердить заказ, уточнить удобное время и способ доставки, а также согласовать оплату:_",
+      body: "*📦 Укажите адрес доставки:*",
     });
   } else if (session.step === "waiting_for_address") {
     session.address = message;
-    session.step = "order_complete";
-
-    const orderMessage = `
-      🛒 Новый заказ!
-      Клиент: ${session.clientName}
-      Препараты: ${session.products}
-      Адрес доставки: ${session.address}
-    `;
-
-    await client.messages.create({
-      to: "+77774991275",  // Менеджерский номер для получения заказов
-      from: from,
-      body: orderMessage,
-    });
-
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "✅ Ваш заказ принят! Менеджер свяжется с вами в ближайшее время.",
-    });
-    sessions[from] = { step: "waiting_for_command" };
+    const orderText = `🛒 Новый заказ:\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
+    try {
+      await client.messages.create({
+        from: "whatsapp:+77718124038",
+        to: "whatsapp:+77774991275",
+        body: orderText,
+      });
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "✅ Спасибо! Ваш заказ принят.",
+      });
+    } catch (err) {
+      console.error("❌ Ошибка отправки заказа:", err.message);
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "❌ Не удалось отправить заказ. Попробуйте позже.",
+      });
+    }
+    delete sessions[from];
+    return res.status(200).send();
   }
 
   return res.status(200).send();
 });
 
-function sendPDF(to, body, url) {
-  return client.messages.create({
-    to,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body,
-    mediaUrl: url,
-  });
+async function sendPDF(to, caption, mediaUrl) {
+  try {
+    await client.messages.create({
+      to,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: caption,
+      mediaUrl: [mediaUrl],
+    });
+    console.log("📤 PDF отправлен:", mediaUrl);
+  } catch (err) {
+    console.error("❌ Ошибка при отправке PDF:", err.message);
+    await client.messages.create({
+      to,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "❌ Не удалось загрузить документ.",
+    });
+  }
 }
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`👂 Слушаю на порту ${PORT}`);
 });
