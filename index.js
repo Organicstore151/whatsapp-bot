@@ -292,4 +292,3 @@ async function sendPDF(to, caption, mediaUrl) {
 app.listen(PORT, () => {
   console.log(`👂 Слушаю на порту ${PORT}`);
 });
-
