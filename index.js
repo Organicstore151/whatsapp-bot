@@ -22,6 +22,20 @@ function logUserAction(from, step, message) {
   const logLine = `[${new Date().toISOString()}] ${from} | ${step} | ${message}\n`;
   const logPath = path.join(__dirname, "user_behavior.log");
 
+  // Проверяем, существует ли файл, и если нет — создаём его
+  fs.access(logPath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // Файл не существует, создаём его
+      fs.writeFile(logPath, "", (err) => {
+        if (err) {
+          console.error("❌ Ошибка при создании файла:", err.message);
+        } else {
+          console.log("📝 Файл для логов успешно создан.");
+        }
+      });
+    }
+  });
+
   fs.appendFile(logPath, logLine, (err) => {
     if (err) {
       console.error("❌ Ошибка записи в лог:", err.message);
@@ -36,6 +50,7 @@ app.post("/webhook", async (req, res) => {
 
   const from = req.body.From;
   const message = (req.body.Body || "").trim();
+  const mediaUrl = req.body.MediaUrl0; // Проверяем, есть ли прикрепленный файл (например, фото рецепта)
 
   if (!sessions[from]) {
     await client.messages.create({
@@ -50,6 +65,16 @@ app.post("/webhook", async (req, res) => {
 
   const session = sessions[from];
   logUserAction(from, session.step, message);
+
+  // Если пришло изображение (фото рецепта), сохраняем URL
+  if (mediaUrl) {
+    session.recipeImage = mediaUrl;
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.",
+    });
+  }
 
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
@@ -232,7 +257,7 @@ app.post("/webhook", async (req, res) => {
   else if (session.step === "waiting_for_address") {
     session.address = message;
 
-    const orderText = `🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}`;
+    const orderText = `🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
 
     try {
       await client.messages.create({
@@ -277,15 +302,12 @@ async function sendPDF(to, caption, mediaUrl) {
     await client.messages.create({
       to,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "❌ Не удалось отправить файл. Попробуйте позже.",
+      body: "❌ Не удалось загрузить документ. Попробуйте позже.",
     });
   }
 }
 
-app.get("/", (req, res) => {
-  res.send("✅ WhatsApp бот работает");
+app.listen(PORT, () => {
+  console.log(`👂 Слушаю на порту ${PORT}`);
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
