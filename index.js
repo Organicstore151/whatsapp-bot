@@ -4,7 +4,6 @@ const express = require('express');
 const { MessagingResponse } = require('twilio').twiml;
 const axios = require('axios');
 const fs = require('fs');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { OpenAI } = require('openai');
 
 const app = express();
@@ -42,6 +41,8 @@ app.post('/incoming', async (req, res) => {
   const body = req.body.Body?.trim();
   const phone = from.replace('whatsapp:', '');
 
+  console.log('Получено сообщение от', phone, ':', body);
+
   if (!sessions[phone]) sessions[phone] = { step: null, data: {} };
   const session = sessions[phone];
 
@@ -71,6 +72,7 @@ app.post('/incoming', async (req, res) => {
         logBehavior(from, 'bonus_response', `${amount} ₸`);
         sessions[phone] = { step: null, data: {} };
       } catch (e) {
+        console.error('Ошибка при авторизации:', e);
         msg.body('Ошибка при входе. Проверьте ID и пароль.');
         logBehavior(from, 'login_failed', body);
       }
@@ -109,30 +111,36 @@ app.post('/incoming', async (req, res) => {
       session.data.address = body;
       const text = `Новый заказ:\nФИО: ${session.data.name}\nID клиента: ${session.data.clientId}\nПрепараты: ${session.data.products}\nАдрес: ${session.data.address}`;
 
-      await axios.post('https://api.twilio.com/2010-04-01/Accounts/' + process.env.TWILIO_ACCOUNT_SID + '/Messages.json',
-        new URLSearchParams({
-          To: 'whatsapp:' + process.env.MANAGER_PHONE,
-          From: process.env.TWILIO_WHATSAPP_NUMBER,
-          Body: text,
-        }),
-        {
-          auth: {
-            username: process.env.TWILIO_ACCOUNT_SID,
-            password: process.env.TWILIO_AUTH_TOKEN,
-          },
-        }
-      );
+      try {
+        await axios.post('https://api.twilio.com/2010-04-01/Accounts/' + process.env.TWILIO_ACCOUNT_SID + '/Messages.json',
+          new URLSearchParams({
+            To: 'whatsapp:' + process.env.MANAGER_PHONE,
+            From: process.env.TWILIO_WHATSAPP_NUMBER,
+            Body: text,
+          }),
+          {
+            auth: {
+              username: process.env.TWILIO_ACCOUNT_SID,
+              password: process.env.TWILIO_AUTH_TOKEN,
+            },
+          }
+        );
 
-      msg.body('Ваш заказ принят! Менеджер скоро с вами свяжется.');
-      logBehavior(from, 'order_complete', text);
-      sessions[phone] = { step: null, data: {} };
+        msg.body('Ваш заказ принят! Менеджер скоро с вами свяжется.');
+        logBehavior(from, 'order_complete', text);
+        sessions[phone] = { step: null, data: {} };
+      } catch (error) {
+        console.error('Ошибка при отправке сообщения менеджеру:', error);
+        msg.body('Произошла ошибка при отправке заказа. Попробуйте снова.');
+        logBehavior(from, 'order_failed', body);
+      }
     } else {
       const gptResponse = await handleGPTFallback(body, from);
       msg.body(gptResponse);
       logBehavior(from, 'unrecognized_input', body);
     }
   } catch (err) {
-    console.error('❌ Ошибка:', err);
+    console.error('❌ Ошибка при обработке запроса:', err);
     msg.body('Произошла ошибка. Попробуйте позже.');
     logBehavior(from, 'error', body);
   }
@@ -144,3 +152,4 @@ app.post('/incoming', async (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log('🚀 Сервер запущен на порту', process.env.PORT || 3000);
 });
+
