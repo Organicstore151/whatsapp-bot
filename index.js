@@ -17,7 +17,6 @@ const sessions = {};
 
 const logPath = path.join(__dirname, "user_behavior.log");
 
-// Функция логирования в Google Таблицу и файл
 function logUserAction(from, step, message) {
   const data = {
     date: new Date().toISOString(),
@@ -68,7 +67,6 @@ app.post("/webhook", async (req, res) => {
   const session = sessions[from];
   logUserAction(from, session.step, message);
 
-  // Сброс процесса, если пользователь в процессе и нажал другие кнопки (кроме "Сделать заказ")
   const interruptingMessages = [
     "Каталог препаратов",
     "Прайс-лист",
@@ -128,7 +126,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*\n_Это нужно, чтобы мы передали заказ менеджеру и он мог с вами связаться:_",
+        body: "*🛒 Для оформления заказа, пожалуйста, отправьте ваше имя или ID клиента.*",
       });
       session.step = "waiting_for_name";
     } else if (message === "Связаться с менеджером") {
@@ -218,6 +216,44 @@ app.post("/webhook", async (req, res) => {
         body: "❌ Ошибка при авторизации. Попробуйте снова.",
       });
     }
+  } else if (session.step === "waiting_for_name") {
+    session.clientName = message;
+    session.step = "waiting_for_products";
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "📦 Укажите список препаратов, которые хотите заказать:",
+    });
+  } else if (session.step === "waiting_for_products") {
+    session.products = message;
+    session.step = "waiting_for_address";
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "📍 Укажите адрес доставки:",
+    });
+  } else if (session.step === "waiting_for_address") {
+    session.address = message;
+    session.step = "waiting_for_command";
+
+    const orderMessage = `📥 *Новый заказ!*\n\n👤 Клиент: ${session.clientName}\n📦 Препараты: ${session.products}\n📍 Адрес: ${session.address}\n📸 Фото рецепта: ${session.recipeImage || "не предоставлено"}`;
+
+    await client.messages.create({
+      to: "whatsapp:+77774991275",
+      from: from,
+      body: orderMessage,
+    });
+
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "✅ Ваш заказ отправлен менеджеру! Он скоро с вами свяжется.",
+    });
+
+    delete session.clientName;
+    delete session.products;
+    delete session.address;
+    delete session.recipeImage;
   }
 
   res.status(200).send();
