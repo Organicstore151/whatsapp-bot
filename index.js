@@ -29,7 +29,7 @@ function logUserAction(from, step, message) {
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
 
-  const logLine = ${data.date} | ${data.phone} | ${data.step} | ${data.message}\n;
+  const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
 
   fs.access(logPath, fs.constants.F_OK, (err) => {
     if (err) {
@@ -134,7 +134,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: 💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink},
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     } else {
       session.step = "unrecognized_input";
@@ -150,7 +150,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: 💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink},
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
       session.step = "waiting_for_command";
       return res.status(200).send();
@@ -190,7 +190,7 @@ app.post("/webhook", async (req, res) => {
       const token = authResponse.data.token;
 
       const bonusResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
-        headers: { Authorization: Bearer ${token} },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const balanceArray = bonusResponse.data?.current?.balance;
@@ -202,7 +202,7 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           to: from,
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: 🎉 Ваш бонусный баланс: ${bonusAmount} тг,
+          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
         });
       } else {
         await client.messages.create({
@@ -237,40 +237,45 @@ app.post("/webhook", async (req, res) => {
     });
   } else if (session.step === "waiting_for_address") {
     session.address = message;
-    session.step = "waiting_for_command";
+    session.step = "done";
 
-    const orderMessage = 📥 *Новый заказ!*\n\n👤 Клиент: ${session.clientName}\n📦 Препараты: ${session.products}\n📍 Адрес: ${session.address}\n📸 Фото рецепта: ${session.recipeImage || "не предоставлено"};
+    const orderData = {
+      clientName: session.clientName,
+      products: session.products,
+      address: session.address,
+    };
 
-    await client.messages.create({
-      to: "whatsapp:+77774991275",
-      from: from,
-      body: orderMessage,
-    });
-
+    await sendOrderToManager(orderData);
     await client.messages.create({
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "✅ Ваш заказ отправлен менеджеру! Он скоро с вами свяжется.",
+      body: "🎉 Ваш заказ принят! Мы свяжемся с вами для подтверждения.",
     });
-
-    delete session.clientName;
-    delete session.products;
-    delete session.address;
-    delete session.recipeImage;
   }
 
-  res.status(200).send();
+  return res.status(200).send();
 });
 
-app.listen(PORT, () => {
-  console.log(Server is running on port ${PORT});
-});
-
-async function sendPDF(from, message, url) {
+async function sendPDF(to, message, fileUrl) {
   await client.messages.create({
-    to: from,
+    to: to,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
     body: message,
-    mediaUrl: url,
+    mediaUrl: [fileUrl],
   });
 }
+
+async function sendOrderToManager(orderData) {
+  try {
+    await axios.post("https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage", {
+      chat_id: "YOUR_CHAT_ID",
+      text: `Новый заказ:\nИмя клиента: ${orderData.clientName}\nПродукты: ${orderData.products}\nАдрес: ${orderData.address}`,
+    });
+  } catch (err) {
+    console.error("Ошибка при отправке заказа менеджеру:", err.message);
+  }
+}
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
