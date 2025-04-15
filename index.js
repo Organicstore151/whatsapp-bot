@@ -52,7 +52,6 @@ function logUserAction(from, step, message) {
       console.log("📝 Лог записан:", logLine.trim());
     }
   });
-}
 
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", req.body);
