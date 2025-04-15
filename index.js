@@ -96,14 +96,14 @@ app.post("/webhook", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(threadId);
     const last = messages.data.find((m) => m.role === "assistant");
     await sendMessage(from, last.content[0].text.value);
-    return res.sendStatus(200);
+    return res.send();  // Пустой ответ
   }
 
   // Простой ответ
   const messages = await openai.beta.threads.messages.list(threadId);
   const last = messages.data.find((m) => m.role === "assistant");
   await sendMessage(from, last.content[0].text.value);
-  res.sendStatus(200);
+  res.send();  // Пустой ответ
 });
 
 async function waitForCompletion(threadId, runId) {
