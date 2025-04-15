@@ -19,8 +19,17 @@ const sessions = {};
 
 // Логирование действий пользователя
 function logUserAction(from, step, message) {
-  const logLine = `[${new Date().toISOString()}] ${from} | ${step} | ${message}\n`;  // Исправленный момент
-  const logPath = path.join(__dirname, "user_behavior.log");
+  const data = {
+    date: new Date().toISOString(),
+    phone: from,
+    step,
+    message,
+  };
+
+  axios.post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
+    .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
+    .catch((err) => console.error("❌ Ошибка при логировании в таблицу:", err.message));
+}
 
   // Проверяем, существует ли файл, и если нет — создаём его
   fs.access(logPath, fs.constants.F_OK, (err) => {
