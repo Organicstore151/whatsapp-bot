@@ -19,7 +19,7 @@ const sessions = {};
 
 // Логирование действий пользователя
 function logUserAction(from, step, message) {
-  const logLine = [${new Date().toISOString()}] ${from} | ${step} | ${message}\n;
+  const logLine = `[${new Date().toISOString()}] ${from} | ${step} | ${message}\n`;  // Исправленный момент
   const logPath = path.join(__dirname, "user_behavior.log");
 
   // Проверяем, существует ли файл, и если нет — создаём его
@@ -129,7 +129,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: 💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink},
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     }
 
@@ -149,7 +149,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: 💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink},
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
       session.step = "waiting_for_command";
     } else if (message === "2") {
@@ -197,7 +197,7 @@ app.post("/webhook", async (req, res) => {
         "https://lk.peptides1.ru/api/partners/current/closing-info",
         {
           headers: {
-            Authorization: Bearer ${token},
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -211,7 +211,7 @@ app.post("/webhook", async (req, res) => {
         await client.messages.create({
           to: from,
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: 🎉 Ваш бонусный баланс: ${bonusAmount} тг,
+          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг`,
         });
       } else {
         await client.messages.create({
@@ -257,7 +257,7 @@ app.post("/webhook", async (req, res) => {
   else if (session.step === "waiting_for_address") {
     session.address = message;
 
-    const orderText = 🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"};
+    const orderText = `🛒 Новый заказ:\n\n👤 ФИО: ${session.name}\n📋 Препараты: ${session.items}\n🏠 Адрес: ${session.address}\n📞 От клиента: ${from}\n🖼️ Фото рецепта: ${session.recipeImage || "Не прикреплено"}`;
 
     try {
       await client.messages.create({
@@ -308,5 +308,5 @@ async function sendPDF(to, caption, mediaUrl) {
 }
 
 app.listen(PORT, () => {
-  console.log(👂 Слушаю на порту ${PORT});
+  console.log(`👂 Слушаю на порту ${PORT}`);
 });
