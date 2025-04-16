@@ -114,7 +114,6 @@ logUserAction(from, session.step, message);
           messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
           body: "❌ Не удалось загрузить каталог. Попробуйте позже.",
         });
-      }
     } else if (message === "Каталог препаратов") {
       await sendPDF(from, "🧾 Ознакомьтесь с нашим каталогом препаратов📥", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
     } else if (message === "Курс лечения") {
