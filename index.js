@@ -267,7 +267,7 @@ app.post("/webhook", async (req, res) => {
         contentSid: process.env.TEMPLATE_SID,
       });
       await client.messages.create({
-    to,
+    to: from,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
     contentSid: 'HX639de1bcadce708027d192602ccb37e3',
   });
@@ -278,6 +278,7 @@ app.post("/webhook", async (req, res) => {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "Пожалуйста, выберите:\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером\n4️⃣ Главное меню",
       });
+  }
   } else if (session.step === "waiting_for_name") {
     session.name = message;
     session.step = "waiting_for_items";
