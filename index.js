@@ -224,11 +224,18 @@ app.post("/webhook", async (req, res) => {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: "💬 Связаться с менеджером: https://wa.me/77774991275",
       });
+      } else if (message === "4") {
+      session.step = "waiting_for_command";
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        contentSid: process.env.TEMPLATE_SID,
+      });
     } else {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, выберите:\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером",
+        body: "Пожалуйста, выберите:\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером\n4️⃣ Главное меню",
       });
     }
   } else if (session.step === "waiting_for_name") {
