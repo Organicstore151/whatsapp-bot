@@ -155,7 +155,7 @@ app.post("/webhook", async (req, res) => {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Главное меню",
       });
     }
   } else if (session.step === "unrecognized_input") {
@@ -173,12 +173,18 @@ app.post("/webhook", async (req, res) => {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         contentSid: process.env.TEMPLATE_SID,
       });
+      await client.messages.create({
+    to,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    contentSid: 'HX639de1bcadce708027d192602ccb37e3',
+  });
+}
       session.step = "waiting_for_command";
     } else {
       await client.messages.create({
         to: from,
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
+        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Главное меню",
       });
     }
 } else if (session.step === "waiting_for_login") {
@@ -261,6 +267,12 @@ app.post("/webhook", async (req, res) => {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         contentSid: process.env.TEMPLATE_SID,
       });
+      await client.messages.create({
+    to,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    contentSid: 'HX639de1bcadce708027d192602ccb37e3',
+  });
+}
     } else {
       await client.messages.create({
         to: from,
