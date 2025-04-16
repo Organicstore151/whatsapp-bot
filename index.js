@@ -90,7 +90,7 @@ app.post("/webhook", async (req, res) => {
       body: "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.",
     });
   }
-async function sendMedia(to, body, mediaUrl) {
+async function sendPDF(to, body, mediaUrl) {
   try {
     await client.messages.create({
       from:"whatsapp:+77718124038",
