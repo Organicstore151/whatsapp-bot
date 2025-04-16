@@ -54,20 +54,32 @@ app.post("/webhook", async (req, res) => {
   const message = (req.body.Body || "").trim();
   const mediaUrl = req.body.MediaUrl0;
 
-  const name = req.body.profile?.name || 'друг';  // Получаем имя из профиля или используем "друг" по умолчанию
-
-if (!sessions[from]) {
+  if (!sessions[from]) {
+  // Отправка первого шаблона (например, приветствие)
   await client.messages.create({
     to: from,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    contentSid: process.env.TEMPLATE_SID,
-    contentVariables: JSON.stringify({ "1": name })  // Передаем имя в шаблон
+    contentSid: process.env.TEMPLATE_SID, // основной шаблон
   });
+
+  // Отправка второго шаблона (например, кнопки с информацией о продукции)
+  await client.messages.create({
+    to: from,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    contentSid: "HX942c3ececa1c3412f13674ef9dacdbc3", // второй шаблон
+  });
+
+  // Инициализация сессии
   sessions[from] = { step: "waiting_for_command" };
+
+  // Логирование
   logUserAction(from, "new_user", message);
+
+  // Завершение ответа
   return res.status(200).send();
 }
 
+// Если сессия уже есть — продолжаем работу
 const session = sessions[from];
 logUserAction(from, session.step, message);
 
