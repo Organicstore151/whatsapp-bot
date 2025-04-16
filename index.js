@@ -90,7 +90,23 @@ app.post("/webhook", async (req, res) => {
       body: "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.",
     });
   }
-
+async function sendMedia(to, body, mediaUrl) {
+  try {
+    await client.messages.create({
+      from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
+      to,
+      body,
+      mediaUrl: [mediaUrl],
+    });
+  } catch (err) {
+    console.error("Ошибка при отправке изображения:", err.message);
+    await client.messages.create({
+      from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
+      to,
+      body: "❌ Не удалось загрузить акцию. Попробуйте позже.",
+    });
+  }
+}
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
       await client.messages.create({
