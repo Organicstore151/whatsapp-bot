@@ -93,7 +93,7 @@ app.post("/webhook", async (req, res) => {
 async function sendMedia(to, body, mediaUrl) {
   try {
     await client.messages.create({
-      from: from: "whatsapp:+77718124038",
+      from:"whatsapp:+77718124038",
       to,
       body: caption,
       mediaUrl: [mediaUrl],
