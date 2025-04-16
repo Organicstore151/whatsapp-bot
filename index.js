@@ -153,28 +153,31 @@ logUserAction(from, session.step, message);
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     } else {
-      session.step = "unrecognized_input";
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
-      });
-    }
-  } else if (session.step === "unrecognized_input") {
-    if (message === "1") {
-      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
-      });
-      session.step = "waiting_for_command";
-    } else if (message === "2") {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        contentSid: process.env.TEMPLATE_SID,
-      });
+  session.step = "unrecognized_input";
+  await client.messages.create({
+    to: from,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+  });
+} // Закрывает первую конструкцию else
+
+} else if (session.step === "unrecognized_input") {
+  if (message === "1") {
+    const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+    });
+    session.step = "waiting_for_command";
+  } else if (message === "2") {
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      contentSid: process.env.TEMPLATE_SID,
+    });
+  }
+}
       session.step = "waiting_for_command";
     } else {
       await client.messages.create({
