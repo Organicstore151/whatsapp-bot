@@ -169,6 +169,8 @@ logUserAction(from, session.step, message);
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
     });
+    }
+}
     session.step = "waiting_for_command";
   } else if (message === "2") {
     await client.messages.create({
