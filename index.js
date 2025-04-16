@@ -121,6 +121,23 @@ logUserAction(from, session.step, message);
       await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
     } else if (message === "Прайс-лист") {
       await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
+      } else if (message === "Акции этого месяца") {
+  // Массив с ссылками на изображения
+  const promoImages = [
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme%2BGPL%20Man_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Man_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_FELICITA_0104-1504_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_TEMERO%20GENERO_1604-3004_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/SL-06%2BPC-12_KZ.jpg',
+    'https://github.com/Organicstore151/monthly-promotions/raw/main/Volustom_KZ.jpg'
+  ];
+
+  // Отправка всех файлов с акциями
+  for (const imageUrl of promoImages) {
+    await sendPDF(from, "🎉 Ознакомьтесь с акциями этого месяца📥", imageUrl);
+  }
+}
     } else if (message === "Сделать заказ") {
       await client.messages.create({
         to: from,
