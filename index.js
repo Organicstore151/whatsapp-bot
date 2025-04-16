@@ -181,10 +181,10 @@ app.post("/webhook", async (req, res) => {
 
       if (bonusAmount !== null) {
         await client.messages.create({
-          to: from,
-          messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-          body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг\n\nЧто вы хотите сделать дальше?\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером`,
-        });
+  to: from,
+  messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+  body: `🎉 Ваш бонусный баланс: ${bonusAmount} тг\n\nЧто вы хотите сделать дальше?\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером\n4️⃣ Главное меню`,
+});
       } else {
         await client.messages.create({
           to: from,
