@@ -140,13 +140,13 @@ async function sendPDF(to, body, mediaUrl) {
     } else if (message === "Акции этого месяца") {
       // Массив с ссылками на изображения
       const promoImages = [
-        'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme%2BGPL%20Man_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/jpeg-optimizer_GPL%20Femme%2BGPL%20Man_KZ.jpg',
         'https://github.com/Organicstore151/monthly-promotions/raw/main/jpeg-optimizer_GPL%20Femme_KZ.jpg',
-        'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Man_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/jpeg-optimizer_GPL%20Man_KZ.jpg',
         'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_FELICITA_0104-1504_KZ.jpg',
         'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_TEMERO%20GENERO_1604-3004_KZ.jpg',
-        'https://github.com/Organicstore151/monthly-promotions/raw/main/SL-06%2BPC-12_KZ.jpg',
-        'https://github.com/Organicstore151/monthly-promotions/raw/main/Volustom_KZ.jpg'
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/jpeg-optimizer_SL-06%2BPC-12_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/jpeg-optimizer_Volustom_KZ.jpg'
       ];
 
       // Отправка всех файлов с акциями
