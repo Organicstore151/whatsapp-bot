@@ -269,6 +269,7 @@ app.post("/webhook", async (req, res) => {
         body: "Пожалуйста, выберите:\n1️⃣ Снять бонусы\n2️⃣ Оформить заказ\n3️⃣ Связаться с менеджером\n4️⃣ Главное меню",
       });
     }
+}
   } else if (session.step === "waiting_for_name") {
     session.name = message;
     session.step = "waiting_for_items";
