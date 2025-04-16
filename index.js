@@ -134,7 +134,7 @@ app.post("/webhook", async (req, res) => {
 
       // Отправка всех файлов с акциями
       for (const imageUrl of promoImages) {
-        await sendPDF(from, "🎉 Ознакомьтесь с акциями этого месяца📥", imageUrl);
+        await sendMedia(from, "🎉 Ознакомьтесь с акциями этого месяца📥", imageUrl);
       }
     } else if (message === "Сделать заказ") {
       await client.messages.create({
