@@ -183,26 +183,33 @@ async function sendPDF(to, body, mediaUrl) {
         messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
-      session.step = "waiting_for_command";
-    } else if (message === "2") {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        contentSid: process.env.TEMPLATE_SID,
-      });
-      await client.messages.create({
+     session.step = "waiting_for_command";
+} else if (message === "2") {
+  // Отправка первого шаблона
+  await client.messages.create({
     to: from,
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    contentSid: 'HX639de1bcadce708027d192602ccb37e3',
+    contentSid: process.env.TEMPLATE_SID,
   });
-      session.step = "waiting_for_command";
-    } else {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Главное меню",
-      });
-    }
+
+  // Добавление задержки, чтобы Twilio успел обработать первое сообщение
+  setTimeout(async () => {
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      contentSid: 'HX639de1bcadce708027d192602ccb37e3',
+    });
+  }, 2000); // 2000 мс = 2 секунды задержки
+
+  session.step = "waiting_for_command";
+} else {
+  await client.messages.create({
+    to: from,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Главное меню",
+  });
+}
+
 } else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
