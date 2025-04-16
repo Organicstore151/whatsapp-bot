@@ -59,6 +59,7 @@ app.post("/webhook", async (req, res) => {
       to: from,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       contentSid: process.env.TEMPLATE_SID,
+      contentVariables: JSON.stringify({ "1": "друг" })
     });
     sessions[from] = { step: "waiting_for_command" };
     logUserAction(from, "new_user", message);
