@@ -176,7 +176,8 @@ async function sendPDF(to, body, mediaUrl) {
       });
     }
   } else if (session.step === "unrecognized_input") {
-    if (message === "1") {
+    const cleanMessage = message.trim();
+ if (cleanMessage === "1") {
       const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
       await client.messages.create({
         to: from,
