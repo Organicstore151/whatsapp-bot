@@ -46,7 +46,6 @@ function logUserAction(from, step, message) {
     }
   });
 }
-
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", req.body);
 
@@ -55,33 +54,33 @@ app.post("/webhook", async (req, res) => {
   const mediaUrl = req.body.MediaUrl0;
 
   if (!sessions[from]) {
-  // Отправка первого шаблона (например, приветствие)
-  await client.messages.create({
-    to: from,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    contentSid: process.env.TEMPLATE_SID, // основной шаблон
-  });
+    // Отправка первого шаблона (например, приветствие)
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      contentSid: process.env.TEMPLATE_SID, // основной шаблон
+    });
 
-  // Отправка второго шаблона (например, кнопки с информацией о продукции)
-  await client.messages.create({
-    to: from,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    contentSid: "HX942c3ececa1c3412f13674ef9dacdbc3", // второй шаблон
-  });
+    // Отправка второго шаблона (например, кнопки с информацией о продукции)
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      contentSid: "HX942c3ececa1c3412f13674ef9dacdbc3", // второй шаблон
+    });
 
-  // Инициализация сессии
-  sessions[from] = { step: "waiting_for_command" };
+    // Инициализация сессии
+    sessions[from] = { step: "waiting_for_command" };
 
-  // Логирование
-  logUserAction(from, "new_user", message);
+    // Логирование
+    logUserAction(from, "new_user", message);
 
-  // Завершение ответа
-  return res.status(200).send();
-}
+    // Завершение ответа
+    return res.status(200).send();
+  }
 
-// Если сессия уже есть — продолжаем работу
-const session = sessions[from];
-logUserAction(from, session.step, message);
+  // Если сессия уже есть — продолжаем работу
+  const session = sessions[from];
+  logUserAction(from, session.step, message);
 
   if (mediaUrl) {
     session.recipeImage = mediaUrl;
@@ -121,23 +120,22 @@ logUserAction(from, session.step, message);
       await sendPDF(from, "🩺 Ознакомьтесь с рекомендациями по комплексному применению📥", "https://organicstore151.github.io/comples/complex.pdf");
     } else if (message === "Прайс-лист") {
       await sendPDF(from, "💰 Ознакомьтесь с актуальным прайс-листом📥", "https://organicstore151.github.io/price/price.pdf");
-      } else if (message === "Акции этого месяца") {
-  // Массив с ссылками на изображения
-  const promoImages = [
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme%2BGPL%20Man_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Man_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_FELICITA_0104-1504_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_TEMERO%20GENERO_1604-3004_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/SL-06%2BPC-12_KZ.jpg',
-    'https://github.com/Organicstore151/monthly-promotions/raw/main/Volustom_KZ.jpg'
-  ];
+    } else if (message === "Акции этого месяца") {
+      // Массив с ссылками на изображения
+      const promoImages = [
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme%2BGPL%20Man_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Femme_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/GPL%20Man_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_FELICITA_0104-1504_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/PROMO_TEMERO%20GENERO_1604-3004_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/SL-06%2BPC-12_KZ.jpg',
+        'https://github.com/Organicstore151/monthly-promotions/raw/main/Volustom_KZ.jpg'
+      ];
 
-  // Отправка всех файлов с акциями
-  for (const imageUrl of promoImages) {
-    await sendPDF(from, "🎉 Ознакомьтесь с акциями этого месяца📥", imageUrl);
-  }
-}
+      // Отправка всех файлов с акциями
+      for (const imageUrl of promoImages) {
+        await sendPDF(from, "🎉 Ознакомьтесь с акциями этого месяца📥", imageUrl);
+      }
     } else if (message === "Сделать заказ") {
       await client.messages.create({
         to: from,
@@ -153,40 +151,38 @@ logUserAction(from, session.step, message);
         body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
       });
     } else {
-  session.step = "unrecognized_input";
-  await client.messages.create({
-    to: from,
-    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-    body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
-  });
-} // Закрывает первую конструкцию else
-
-} else if (session.step === "unrecognized_input") {
-  if (message === "1") {
-    const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
-    });
-    session.step = "waiting_for_command";
-  } else if (message === "2") {
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      contentSid: process.env.TEMPLATE_SID,
-    });
-    session.step = "waiting_for_command";
-  } else {
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
-    });
+      session.step = "unrecognized_input";
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Вернуться к началу",
+      });
+    }
+  } else if (session.step === "unrecognized_input") {
+    if (message === "1") {
+      const managerLink = "https://wa.me/77774991275?text=Здравствуйте";
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
+      });
+      session.step = "waiting_for_command";
+    } else if (message === "2") {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        contentSid: process.env.TEMPLATE_SID,
+      });
+      session.step = "waiting_for_command";
+    } else {
+      await client.messages.create({
+        to: from,
+        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
+      });
+    }
   }
-}
-
-  } else if (session.step === "waiting_for_login") {
+} else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
     await client.messages.create({
