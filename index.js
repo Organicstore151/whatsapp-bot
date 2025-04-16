@@ -169,8 +169,6 @@ logUserAction(from, session.step, message);
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: `💬 Чтобы связаться с менеджером, нажмите на ссылку ниже:\n${managerLink}`,
     });
-    }
-}
     session.step = "waiting_for_command";
   } else if (message === "2") {
     await client.messages.create({
@@ -178,16 +176,16 @@ logUserAction(from, session.step, message);
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       contentSid: process.env.TEMPLATE_SID,
     });
+    session.step = "waiting_for_command";
+  } else {
+    await client.messages.create({
+      to: from,
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
+    });
   }
 }
-      session.step = "waiting_for_command";
-    } else {
-      await client.messages.create({
-        to: from,
-        messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-        body: "Пожалуйста, выберите:\n1️⃣ — Менеджер\n2️⃣ — Начать заново",
-      });
-    }
+
   } else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
