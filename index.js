@@ -178,7 +178,6 @@ app.post("/webhook", async (req, res) => {
     messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
     contentSid: 'HX639de1bcadce708027d192602ccb37e3',
   });
-}
       session.step = "waiting_for_command";
     } else {
       await client.messages.create({
