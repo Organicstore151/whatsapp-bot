@@ -54,20 +54,22 @@ app.post("/webhook", async (req, res) => {
   const message = (req.body.Body || "").trim();
   const mediaUrl = req.body.MediaUrl0;
 
-  if (!sessions[from]) {
-    await client.messages.create({
-      to: from,
-      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
-      contentSid: process.env.TEMPLATE_SID,
-      contentVariables: JSON.stringify({ "1": "друг" })
-    });
-    sessions[from] = { step: "waiting_for_command" };
-    logUserAction(from, "new_user", message);
-    return res.status(200).send();
-  }
+  const name = req.body.profile?.name || 'друг';  // Получаем имя из профиля или используем "друг" по умолчанию
 
-  const session = sessions[from];
-  logUserAction(from, session.step, message);
+if (!sessions[from]) {
+  await client.messages.create({
+    to: from,
+    messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+    contentSid: process.env.TEMPLATE_SID,
+    contentVariables: JSON.stringify({ "1": name })  // Передаем имя в шаблон
+  });
+  sessions[from] = { step: "waiting_for_command" };
+  logUserAction(from, "new_user", message);
+  return res.status(200).send();
+}
+
+const session = sessions[from];
+logUserAction(from, session.step, message);
 
   if (mediaUrl) {
     session.recipeImage = mediaUrl;
