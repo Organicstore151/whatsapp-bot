@@ -94,15 +94,15 @@ async function sendPDF(to, body, mediaUrl) {
   try {
     await client.messages.create({
       from:"whatsapp:+77718124038",
-      to,
-      body: caption,
+      to: to,
+      body: body,
       mediaUrl: [mediaUrl],
     });
     console.log("📤 Изображение отправлено:", mediaUrl);
   } catch (err) {
     console.error("❌ Ошибка при отправке изображения:", err.message);
     await client.messages.create({
-      to,
+      to: to,
       messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
       body: "❌ Не удалось загрузить изображение.",
     });
