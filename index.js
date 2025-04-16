@@ -93,17 +93,18 @@ app.post("/webhook", async (req, res) => {
 async function sendMedia(to, body, mediaUrl) {
   try {
     await client.messages.create({
-      from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
+      from: from: "whatsapp:+77718124038",
       to,
-      body,
+      body: caption,
       mediaUrl: [mediaUrl],
     });
+    console.log("📤 Изображение отправлено:", mediaUrl);
   } catch (err) {
-    console.error("Ошибка при отправке изображения:", err.message);
+    console.error("❌ Ошибка при отправке изображения:", err.message);
     await client.messages.create({
-      from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
       to,
-      body: "❌ Не удалось загрузить акцию. Попробуйте позже.",
+      messagingServiceSid: process.env.MESSAGING_SERVICE_SID,
+      body: "❌ Не удалось загрузить изображение.",
     });
   }
 }
