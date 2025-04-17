@@ -58,7 +58,7 @@ const sendMessageToMeta = async (to, message) => {
       text: { body: message },
     }, {
       headers: {
-        Authorization: `Bearer ${process.env.VERIFY_TOKEN}`,
+        Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
       },
     });
     console.log("📤 Сообщение отправлено:", message);
