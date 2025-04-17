@@ -66,7 +66,27 @@ const sendMessageToMeta = async (to, message) => {
     console.error("❌ Ошибка при отправке сообщения через Meta API:", err.message);
   }
 };
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
 
+  // Ваш токен подтверждения (это значение вы указываете при настройке вебхука в Meta)
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("✅ Вебхук подтвержден!");
+      // Отправляем challenge обратно в ответ
+      res.status(200).send(challenge);
+    } else {
+      console.log("❌ Токен подтверждения не совпадает");
+      res.sendStatus(403);
+    }
+  } else {
+    res.sendStatus(400);
+  }
+});
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", req.body);
 
