@@ -11,6 +11,11 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+app.get("/", (req, res) => {
+  res.send("Привет! Сервер работает.");
+});
+
+
 const sessions = {};
 
 const logPath = path.join(__dirname, "user_behavior.log");
