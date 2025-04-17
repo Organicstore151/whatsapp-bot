@@ -55,6 +55,7 @@ const sendMessageToMeta = async (to, message) => {
     await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       messaging_product: "whatsapp",
       to: to,
+      type: "text",
       text: { body: message },
     }, {
       headers: {
