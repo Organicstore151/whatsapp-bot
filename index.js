@@ -52,7 +52,7 @@ function logUserAction(from, step, message) {
 
 const sendMessageToMeta = async (to, message) => {
   try {
-    await axios.post(`https://graph.facebook.com/v16.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/messages`, {
+    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       messaging_product: "whatsapp",
       to: to,
       text: { body: message },
