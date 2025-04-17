@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const axios = require("axios");  // axios для запросов к Meta API
+const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -15,9 +15,7 @@ app.get("/", (req, res) => {
   res.send("Привет! Сервер работает.");
 });
 
-
 const sessions = {};
-
 const logPath = path.join(__dirname, "user_behavior.log");
 
 function logUserAction(from, step, message) {
@@ -66,25 +64,22 @@ const sendMessageToMeta = async (to, message) => {
     console.log("Ответ от Meta API:", response.data);
   } catch (err) {
     if (err.response) {
-      // Логирование подробностей ошибки
       console.error("❌ Ошибка при отправке сообщения:", err.response.data);
     } else {
       console.error("❌ Ошибка при отправке сообщения:", err.message);
     }
   }
 };
+
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
-
-  // Ваш токен подтверждения (это значение вы указываете при настройке вебхука в Meta)
   const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
   if (mode && token) {
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
       console.log("✅ Вебхук подтвержден!");
-      // Отправляем challenge обратно в ответ
       res.status(200).send(challenge);
     } else {
       console.log("❌ Токен подтверждения не совпадает");
@@ -94,24 +89,31 @@ app.get("/webhook", (req, res) => {
     res.sendStatus(400);
   }
 });
-app.post("/webhook", async (req, res) => {
-  console.log("📩 Входящее сообщение:", req.body);
 
-  const from = req.body.From;
-  const message = (req.body.Body || "").trim();
-  const mediaUrl = req.body.MediaUrl0;
+app.post("/webhook", async (req, res) => {
+  console.log("📩 Входящее сообщение:", JSON.stringify(req.body, null, 2));
+
+  const entry = req.body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const value = changes?.value;
+  const messages = value?.messages?.[0];
+
+  if (!messages) return res.sendStatus(200);
+
+  const from = messages.from; // номер отправителя
+  const message = messages.text?.body?.trim();
+  const mediaUrl = messages.image?.link;
+
+  if (!from || !message) {
+    console.log("❌ Не удалось извлечь номер или текст");
+    return res.sendStatus(400);
+  }
 
   if (!sessions[from]) {
-    // Отправка первого шаблона (например, приветствие)
     await sendMessageToMeta(from, "Привет! Как я могу помочь?");
-
-    // Инициализация сессии
     sessions[from] = { step: "waiting_for_command" };
-
-    // Логирование
     logUserAction(from, "new_user", message);
-
-    return res.status(200).send();
+    return res.sendStatus(200);
   }
 
   const session = sessions[from];
@@ -144,16 +146,19 @@ app.post("/webhook", async (req, res) => {
     await sendMessageToMeta(from, "Теперь введите пароль:");
   }
 
-  return res.status(200).send();
+  return res.sendStatus(200);
 });
 
 const sendPDF = async (to, caption, mediaUrl) => {
   try {
-    await axios.post(`https://graph.facebook.com/v16.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/messages`, {
+    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       messaging_product: "whatsapp",
       to: to,
-      text: { body: caption },
-      media: { link: mediaUrl },
+      type: "document",
+      document: {
+        link: mediaUrl,
+        caption: caption,
+      },
     }, {
       headers: {
         Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
@@ -161,7 +166,11 @@ const sendPDF = async (to, caption, mediaUrl) => {
     });
     console.log("📤 PDF отправлен:", mediaUrl);
   } catch (err) {
-    console.error("❌ Ошибка при отправке PDF через Meta API:", err.message);
+    if (err.response) {
+      console.error("❌ Ошибка при отправке PDF:", err.response.data);
+    } else {
+      console.error("❌ Ошибка при отправке PDF:", err.message);
+    }
   }
 };
 
