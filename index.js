@@ -52,7 +52,7 @@ function logUserAction(from, step, message) {
 
 const sendMessageToMeta = async (to, message) => {
   try {
-    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+    const response = await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
       messaging_product: "whatsapp",
       to: to,
       type: "text",
@@ -63,8 +63,14 @@ const sendMessageToMeta = async (to, message) => {
       },
     });
     console.log("📤 Сообщение отправлено:", message);
+    console.log("Ответ от Meta API:", response.data);
   } catch (err) {
-    console.error("❌ Ошибка при отправке сообщения через Meta API:", err.message);
+    if (err.response) {
+      // Логирование подробностей ошибки
+      console.error("❌ Ошибка при отправке сообщения:", err.response.data);
+    } else {
+      console.error("❌ Ошибка при отправке сообщения:", err.message);
+    }
   }
 };
 app.get("/webhook", (req, res) => {
