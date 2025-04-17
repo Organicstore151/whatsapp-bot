@@ -72,7 +72,7 @@ app.get("/webhook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   // Ваш токен подтверждения (это значение вы указываете при настройке вебхука в Meta)
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+  const VERIFY_TOKEN = process.env.META_ACCESS_TOKEN;
 
   if (mode && token) {
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
