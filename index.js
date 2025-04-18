@@ -104,36 +104,6 @@ const sendMessageToMeta = async (to, message) => {
   }
 };
 
-// Отправка PDF
-const sendPDF = async (to, caption, mediaUrl) => {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "document",
-        document: {
-          link: mediaUrl,
-          caption: caption,
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-        },
-      }
-    );
-    console.log("📤 PDF отправлен:", mediaUrl);
-  } catch (err) {
-    if (err.response) {
-      console.error("❌ Ошибка при отправке PDF:", err.response.data);
-    } else {
-      console.error("❌ Ошибка при отправке PDF:", err.message);
-    }
-  }
-};
-
 // Отправка шаблонного сообщения
 const sendTemplateMessage = async (to, templateName) => {
   try {
@@ -250,6 +220,7 @@ app.post("/webhook", async (req, res) => {
 
     if (bonus !== null) {
       await sendMessageToMeta(from, `💰 Ваш бонусный баланс: *${bonus} ₸*\n\nЧто вы хотите сделать дальше?\n\n1️⃣ — Снять бонусы\n2️⃣ — Оформить заказ\n3️⃣ — Связаться с менеджером\n4️⃣ — Главное меню`);
+      await sendTemplateMessage(from, "bonus_client");  // Отправка шаблона bonus_client
       session.step = "waiting_for_command";
     } else {
       await sendMessageToMeta(from, "❌ Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
@@ -263,6 +234,7 @@ app.post("/webhook", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
+
 
 
 
