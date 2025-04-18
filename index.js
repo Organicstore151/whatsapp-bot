@@ -169,6 +169,7 @@ app.get("/webhook", (req, res) => {
     res.sendStatus(400);
   }
 });
+
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", JSON.stringify(req.body, null, 2));
 
@@ -183,10 +184,8 @@ app.post("/webhook", async (req, res) => {
   let message = null;
 
   if (messages.text) {
-    // Если сообщение текстовое
     message = messages.text.body?.trim();
   } else if (messages.button) {
-    // Если сообщение с кнопкой
     message = messages.button.payload?.trim();
   }
 
@@ -233,9 +232,8 @@ app.post("/webhook", async (req, res) => {
     const bonus = await getBonusBalance(session.login, session.password);
 
     if (bonus !== null) {
-      await sendMessageToMeta(from, `💰 Ваш бонусный баланс: *${bonus} ₸*`);
+      await sendMessageToMeta(from, `💰 Ваш бонусный баланс: *${bonus} ₸*\n\nЧто вы хотите сделать дальше?\n\n1️⃣ — Снять бонусы\n2️⃣ — Оформить заказ\n3️⃣ — Связаться с менеджером\n4️⃣ — Главное меню`);
       session.step = "waiting_for_command";
-      await sendMessageToMeta(from, "Что вы хотите сделать дальше?\n\n- Узнать баланс бонусов\n- Информация о продукции\n- Оформить заказ");
     } else {
       await sendMessageToMeta(from, "❌ Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
       session.step = "waiting_for_login";
@@ -243,8 +241,10 @@ app.post("/webhook", async (req, res) => {
   }
 
   return res.sendStatus(200);
-});    
+});
+
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
+
 
