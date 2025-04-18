@@ -245,16 +245,13 @@ app.post("/webhook", async (req, res) => {
       
       // Отправка шаблона bonus_client с параметром бонусов
       await sendTemplateMessage(from, "bonus_client", templateParams);
-
-      session.step = "waiting_for_command";
+ session.step = "waiting_for_command";
     } else {
       await sendMessageToMeta(from, "❌ Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
       session.step = "waiting_for_login";
     }
 }
-
 return res.sendStatus(200);
-
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
