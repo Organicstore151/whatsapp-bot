@@ -252,6 +252,7 @@ app.post("/webhook", async (req, res) => {
     }
 }
 return res.sendStatus(200);
+  });
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
