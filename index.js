@@ -71,6 +71,62 @@ const sendMessageToMeta = async (to, message) => {
   }
 };
 
+const sendPDF = async (to, caption, mediaUrl) => {
+  try {
+    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "document",
+      document: {
+        link: mediaUrl,
+        caption: caption,
+      },
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+      },
+    });
+    console.log("📤 PDF отправлен:", mediaUrl);
+  } catch (err) {
+    if (err.response) {
+      console.error("❌ Ошибка при отправке PDF:", err.response.data);
+    } else {
+      console.error("❌ Ошибка при отправке PDF:", err.message);
+    }
+  }
+};
+
+const sendTemplateMessage = async (to, templateName) => {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: {
+            code: "ru",
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+        },
+      }
+    );
+    console.log(`📤 Шаблонное сообщение "${templateName}" отправлено`);
+  } catch (err) {
+    if (err.response) {
+      console.error("❌ Ошибка при отправке шаблона:", err.response.data);
+    } else {
+      console.error("❌ Ошибка при отправке шаблона:", err.message);
+    }
+  }
+};
+
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -100,7 +156,7 @@ app.post("/webhook", async (req, res) => {
 
   if (!messages) return res.sendStatus(200);
 
-  const from = messages.from; // номер отправителя
+  const from = messages.from;
   const message = messages.text?.body?.trim();
   const mediaUrl = messages.image?.link;
 
@@ -109,8 +165,9 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(400);
   }
 
+  // Новый пользователь: отправляем шаблон hello_client
   if (!sessions[from]) {
-    await sendMessageToMeta(from, "Привет! Как я могу помочь?");
+    await sendTemplateMessage(from, "hello_client");
     sessions[from] = { step: "waiting_for_command" };
     logUserAction(from, "new_user", message);
     return res.sendStatus(200);
@@ -148,31 +205,6 @@ app.post("/webhook", async (req, res) => {
 
   return res.sendStatus(200);
 });
-
-const sendPDF = async (to, caption, mediaUrl) => {
-  try {
-    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "document",
-      document: {
-        link: mediaUrl,
-        caption: caption,
-      },
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-      },
-    });
-    console.log("📤 PDF отправлен:", mediaUrl);
-  } catch (err) {
-    if (err.response) {
-      console.error("❌ Ошибка при отправке PDF:", err.response.data);
-    } else {
-      console.error("❌ Ошибка при отправке PDF:", err.message);
-    }
-  }
-};
 
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
