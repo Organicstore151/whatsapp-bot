@@ -48,6 +48,30 @@ function logUserAction(from, step, message) {
   });
 }
 
+// Функция для получения бонусного баланса
+async function getBonusBalance(login, password) {
+  try {
+    const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+      login,
+      password,
+    });
+
+    const token = authResponse.data.tokens.accessToken;
+
+    const balanceResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const amount = balanceResponse.data.current.balance[0]?.amount;
+    return amount !== undefined ? amount : null;
+  } catch (error) {
+    console.error("❌ Ошибка при получении бонусов:", error.message);
+    return null;
+  }
+}
+
 const sendMessageToMeta = async (to, message) => {
   try {
     const response = await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
@@ -201,6 +225,20 @@ app.post("/webhook", async (req, res) => {
     session.login = message;
     session.step = "waiting_for_password";
     await sendMessageToMeta(from, "Теперь введите пароль:");
+  } else if (session.step === "waiting_for_password") {
+    session.password = message;
+    await sendMessageToMeta(from, "⏳ Получаю информацию...");
+
+    const bonus = await getBonusBalance(session.login, session.password);
+
+    if (bonus !== null) {
+      await sendMessageToMeta(from, `💰 Ваш бонусный баланс: *${bonus} ₸*`);
+      session.step = "waiting_for_command";
+      await sendMessageToMeta(from, "Что вы хотите сделать дальше?\n\n- Узнать баланс бонусов\n- Информация о продукции\n- Оформить заказ");
+    } else {
+      await sendMessageToMeta(from, "❌ Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
+      session.step = "waiting_for_login";
+    }
   }
 
   return res.sendStatus(200);
@@ -209,3 +247,4 @@ app.post("/webhook", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
+
