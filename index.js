@@ -127,7 +127,7 @@ const sendMessageToMeta = async (to, message) => {
 
 // Отправка шаблонного сообщения
 // Отправка шаблонного сообщения с параметрами
-const sendTemplateMessage = async (to, templateName, headerParams = []) => {
+const sendTemplateMessage = async (to, templateName, headerParams = [], buttons = []) => {
   try {
     const payload = {
       messaging_product: "whatsapp",
@@ -147,6 +147,16 @@ const sendTemplateMessage = async (to, templateName, headerParams = []) => {
       });
     }
 
+    // Если есть кнопки, добавляем их в компонент
+    if (buttons.length > 0) {
+      payload.template.components.push({
+        type: "button",
+        sub_type: "url", // Кнопка типа URL
+        index: 0,
+        parameters: buttons
+      });
+    }
+
     const response = await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
       payload,
@@ -163,6 +173,7 @@ const sendTemplateMessage = async (to, templateName, headerParams = []) => {
     console.error("❌ Ошибка при отправке шаблона:", error.response?.data || error.message);
   }
 };
+
 
 // Подтверждение вебхука от Meta
 app.get("/webhook", (req, res) => {
@@ -249,6 +260,13 @@ app.post("/webhook", async (req, res) => {
     if (bonus !== null) {
       // Отправляем шаблон с бонусами
       const templateParams = [{ type: "text", text: `${bonus} ₸` }];
+      const buttons = [
+    {
+      type: "url",
+      title: "Связаться с менеджером",
+      url: "https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы"
+    }
+  ];
       
       // Отправка шаблона bonus_client с параметром бонусов
       await sendTemplateMessage(from, "bonus_client", templateParams);
