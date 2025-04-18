@@ -55,13 +55,24 @@ function logUserAction(from, step, message) {
 // Получение бонусов
 async function getBonusBalance(login, password) {
   try {
+    // Отправка логина и пароля для авторизации
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login,
       password,
     });
 
-    const token = authResponse.data.tokens.accessToken;
+    // Логирование всего ответа, чтобы понять, что возвращает сервер
+    console.log("Ответ от сервера при авторизации:", authResponse.data);
 
+    // Извлекаем токен из ответа
+    const token = authResponse.data.tokens?.accessToken;
+
+    if (!token) {
+      console.error("❌ Не удалось получить токен доступа. Проверьте логин и пароль.");
+      return null;
+    }
+
+    // Если токен получен, используем его для получения бонусного баланса
     const balanceResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -70,11 +81,13 @@ async function getBonusBalance(login, password) {
 
     const amount = balanceResponse.data.current.balance[0]?.amount;
     return amount !== undefined ? amount : null;
+
   } catch (error) {
     console.error("❌ Ошибка при получении бонусов:", error.message);
     return null;
   }
 }
+
 
 // Отправка обычного сообщения
 const sendMessageToMeta = async (to, message) => {
