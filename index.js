@@ -169,7 +169,6 @@ app.get("/webhook", (req, res) => {
     res.sendStatus(400);
   }
 });
-
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", JSON.stringify(req.body, null, 2));
 
@@ -181,8 +180,15 @@ app.post("/webhook", async (req, res) => {
   if (!messages) return res.sendStatus(200);
 
   const from = messages.from;
-  const message = messages.text?.body?.trim();
-  const mediaUrl = messages.image?.link;
+  let message = null;
+
+  if (messages.text) {
+    // Если сообщение текстовое
+    message = messages.text.body?.trim();
+  } else if (messages.button) {
+    // Если сообщение с кнопкой
+    message = messages.button.payload?.trim();
+  }
 
   if (!from || !message) {
     console.log("❌ Не удалось извлечь номер или текст");
@@ -199,11 +205,6 @@ app.post("/webhook", async (req, res) => {
 
   const session = sessions[from];
   logUserAction(from, session.step, message);
-
-  if (mediaUrl) {
-    session.recipeImage = mediaUrl;
-    await sendMessageToMeta(from, "📸 Фото рецепта получено! Пожалуйста, продолжите оформление заказа.");
-  }
 
   if (session.step === "waiting_for_command") {
     if (message === "Узнать баланс бонусов") {
@@ -242,8 +243,7 @@ app.post("/webhook", async (req, res) => {
   }
 
   return res.sendStatus(200);
-});
-
+});    
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
