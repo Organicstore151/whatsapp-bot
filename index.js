@@ -60,11 +60,11 @@ async function getBonusBalance(login, password) {
       password,
     });
 
-    // Логирование ответа от API для анализа
+    // Логируем ответ от сервера при авторизации
     console.log("Ответ от сервера при авторизации:", authResponse.data);
 
-    // Проверка наличия токена
-    const token = authResponse.data.tokens?.accessToken;
+    // Проверка наличия токена в ответе
+    const token = authResponse.data.token;
 
     if (!token) {
       console.error("❌ Токен не был получен. Проверьте правильность логина и пароля.");
@@ -78,7 +78,10 @@ async function getBonusBalance(login, password) {
       },
     });
 
-    // Извлекаем баланс
+    // Логируем ответ для проверки
+    console.log("Ответ от API при запросе баланса:", balanceResponse.data);
+
+    // Извлекаем сумму баланса
     const amount = balanceResponse.data.current.balance[0]?.amount;
 
     if (amount === undefined) {
@@ -93,7 +96,7 @@ async function getBonusBalance(login, password) {
     return null;
   }
 }
-
+     
 // Отправка обычного сообщения
 const sendMessageToMeta = async (to, message) => {
   try {
