@@ -126,34 +126,41 @@ const sendMessageToMeta = async (to, message) => {
 };
 
 // Отправка шаблонного сообщения
-const sendTemplateMessage = async (to, templateName) => {
+// Отправка шаблонного сообщения с параметрами
+const sendTemplateMessage = async (to, templateName, headerParams = []) => {
   try {
-    await axios.post(
+    const payload = {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: "ru" },
+        components: []
+      }
+    };
+
+    if (headerParams.length > 0) {
+      payload.template.components.push({
+        type: "header",
+        parameters: headerParams
+      });
+    }
+
+    const response = await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "template",
-        template: {
-          name: templateName,
-          language: {
-            code: "ru",
-          },
-        },
-      },
+      payload,
       {
         headers: {
           Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
-    console.log(`📤 Шаблонное сообщение "${templateName}" отправлено`);
-  } catch (err) {
-    if (err.response) {
-      console.error("❌ Ошибка при отправке шаблона:", err.response.data);
-    } else {
-      console.error("❌ Ошибка при отправке шаблона:", err.message);
-    }
+
+    console.log(`📤 Шаблонное сообщение "${templateName}" отправлено с параметрами`);
+  } catch (error) {
+    console.error("❌ Ошибка при отправке шаблона:", error.response?.data || error.message);
   }
 };
 
