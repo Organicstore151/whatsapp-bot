@@ -15,9 +15,13 @@ app.get("/", (req, res) => {
   res.send("Привет! Сервер работает.");
 });
 
+// Сессии по номерам
 const sessions = {};
+
+// Путь к лог-файлу
 const logPath = path.join(__dirname, "user_behavior.log");
 
+// Логирование в Google Таблицу и файл
 function logUserAction(from, step, message) {
   const data = {
     date: new Date().toISOString(),
@@ -48,7 +52,7 @@ function logUserAction(from, step, message) {
   });
 }
 
-// Функция для получения бонусного баланса
+// Получение бонусов
 async function getBonusBalance(login, password) {
   try {
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
@@ -72,18 +76,23 @@ async function getBonusBalance(login, password) {
   }
 }
 
+// Отправка обычного сообщения
 const sendMessageToMeta = async (to, message) => {
   try {
-    const response = await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "text",
-      text: { body: message },
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+    const response = await axios.post(
+      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "text",
+        text: { body: message },
       },
-    });
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+        },
+      }
+    );
     console.log("📤 Сообщение отправлено:", message);
     console.log("Ответ от Meta API:", response.data);
   } catch (err) {
@@ -95,21 +104,26 @@ const sendMessageToMeta = async (to, message) => {
   }
 };
 
+// Отправка PDF
 const sendPDF = async (to, caption, mediaUrl) => {
   try {
-    await axios.post(`https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`, {
-      messaging_product: "whatsapp",
-      to: to,
-      type: "document",
-      document: {
-        link: mediaUrl,
-        caption: caption,
+    await axios.post(
+      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "document",
+        document: {
+          link: mediaUrl,
+          caption: caption,
+        },
       },
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-      },
-    });
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+        },
+      }
+    );
     console.log("📤 PDF отправлен:", mediaUrl);
   } catch (err) {
     if (err.response) {
@@ -120,6 +134,7 @@ const sendPDF = async (to, caption, mediaUrl) => {
   }
 };
 
+// Отправка шаблонного сообщения
 const sendTemplateMessage = async (to, templateName) => {
   try {
     await axios.post(
@@ -151,6 +166,7 @@ const sendTemplateMessage = async (to, templateName) => {
   }
 };
 
+// Подтверждение вебхука от Meta
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -170,6 +186,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+// Основной webhook для обработки сообщений
 app.post("/webhook", async (req, res) => {
   console.log("📩 Входящее сообщение:", JSON.stringify(req.body, null, 2));
 
@@ -194,7 +211,7 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(400);
   }
 
-  // Новый пользователь: отправляем шаблон hello_client
+  // Новый пользователь: шаблон hello_client
   if (!sessions[from]) {
     await sendTemplateMessage(from, "hello_client");
     sessions[from] = { step: "waiting_for_command" };
@@ -244,7 +261,8 @@ app.post("/webhook", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+  console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
+
 
 
