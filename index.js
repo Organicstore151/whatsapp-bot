@@ -229,28 +229,31 @@ app.post("/webhook", async (req, res) => {
       session.step = "unrecognized_input";
       await sendMessageToMeta(from, "🤖 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1️⃣ — Связаться с менеджером\n2️⃣ — Главное меню");
     }
-  } else if (session.step === "waiting_for_login") {
+ } else if (session.step === "waiting_for_login") {
     session.login = message;
     session.step = "waiting_for_password";
     await sendMessageToMeta(from, "Теперь введите пароль:");
-  } else if (session.step === "waiting_for_password") {
+} else if (session.step === "waiting_for_password") {
     session.password = message;
     await sendMessageToMeta(from, "⏳ Получаю информацию...");
 
     const bonus = await getBonusBalance(session.login, session.password);
 
     if (bonus !== null) {
-      await sendMessageToMeta(from, `💰 Ваш бонусный баланс: *${bonus} ₸*\n\nЧто вы хотите сделать дальше?\n\n1️⃣ — Снять бонусы\n2️⃣ — Оформить заказ\n3️⃣ — Связаться с менеджером\n4️⃣ — Главное меню`);
-      await sendTemplateMessage(from, "bonus_client");  // Отправка шаблона bonus_client
+      // Отправляем шаблон с бонусами
+      const templateParams = [{ type: "text", text: `${bonus} ₸` }];
+      
+      // Отправка шаблона bonus_client с параметром бонусов
+      await sendTemplateMessage(from, "bonus_client", templateParams);
+
       session.step = "waiting_for_command";
     } else {
       await sendMessageToMeta(from, "❌ Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
       session.step = "waiting_for_login";
     }
-  }
+}
 
-  return res.sendStatus(200);
-});
+return res.sendStatus(200);
 
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
