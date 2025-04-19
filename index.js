@@ -254,39 +254,14 @@ app.post("/webhook", async (req, res) => {
       await sendPDF(from, "\ud83d\udcb0 Ознакомьтесь с актуальным прайс-листом\ud83d\udcc5", "https://organicstore151.github.io/price/price.pdf");
     } else {
       session.step = "unrecognized_input";
-      await sendMessageToMeta(from, "\ud83e\udd16 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1\ufe0f\u20e3 — Связаться с менеджером\n2\ufe0f\u20e3 — Главное меню");
+      await sendMessageToMeta(from, "\ud83e\udd16 Извините, я не понял ваш запрос.\n\nВы можете выбрать, что сделать дальше:\n1\ufe0f\u20e3 — Узнать баланс бонусов\n2\ufe0f\u20e3 — Информация о продукции");
     }
-  } else if (session.step === "waiting_for_login") {
-    session.login = message;
-    session.step = "waiting_for_password";
-    await sendMessageToMeta(from, "Теперь введите пароль:");
-  } else if (session.step === "waiting_for_password") {
-    session.password = message;
-    await sendMessageToMeta(from, "\u23f3 Получаю информацию...");
-
-    const bonus = await getBonusBalance(session.login, session.password);
-
-    if (bonus !== null) {
-  const templateParams = [{ type: "text", text: `${bonus} ₸` }];
-  const buttons = [
-    {
-      type: "url",
-      title: "Связаться с менеджером",
-      url: "https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы"
-    }
-  ];
-  await sendTemplateMessage(from, "bonus_client", templateParams);
-       // Отправляем сообщение с ссылкой на WhatsApp менеджера, спрятанную в слово "Whatsapp"
-  const message = "Если хотите снять бонусы, нажмите на ссылку: [Whatsapp](https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы).";
-  await sendMessageToMeta(from, message);
-
-  session.step = "waiting_for_command";
-}
   }
+
   return res.sendStatus(200);
 });
 
-// Запуск сервера на указанном порту
+// Запуск сервера
 app.listen(PORT, () => {
-  console.log(`\ud83d\ude80 Сервер запущен на порту ${PORT}`);
+  console.log(`Сервер запущен на порту ${PORT}`);
 });
