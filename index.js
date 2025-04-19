@@ -1,49 +1,57 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
-require("dotenv").config();
+// Подключение необходимых библиотек
+const express = require("express"); // Для работы с сервером
+const bodyParser = require("body-parser"); // Для парсинга тела запросов
+const axios = require("axios"); // Для выполнения HTTP запросов
+const fs = require("fs"); // Для работы с файловой системой
+const path = require("path"); // Для работы с путями файлов
+require("dotenv").config(); // Для загрузки переменных окружения из .env файла
 
+// Создание приложения Express
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Порт для сервера, по умолчанию 3000
 
+// Настройка middleware для обработки входящих данных
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Обработчик GET запроса на главную страницу
 app.get("/", (req, res) => {
   res.send("Привет! Сервер работает.");
 });
 
-// Сессии по номерам
+// Сессии по номерам телефонов клиентов
 const sessions = {};
 
-// Путь к лог-файлу
+// Путь к файлу для логирования
 const logPath = path.join(__dirname, "user_behavior.log");
 
-// Логирование в Google Таблицу и файл
+// Функция логирования действий пользователей
 function logUserAction(from, step, message) {
   const data = {
-    date: new Date().toISOString(),
-    phone: from,
-    step,
-    message,
+    date: new Date().toISOString(), // Текущая дата и время
+    phone: from, // Номер телефона пользователя
+    step, // Текущий шаг в процессе
+    message, // Сообщение от пользователя
   };
 
+  // Логирование в Google Таблицу
   axios
     .post("https://script.google.com/macros/s/AKfycbyBfgnmgHoklSrxyvkRlVyVDJI960l4BNK8fzWxctoVTTXaVzshADG2ZR6rm-7GBxT02Q/exec", data)
     .then(() => console.log("\ud83d\udce4 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("\u274c Ошибка при логировании в таблицу:", err.message));
 
+  // Запись в файл логов
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
 
   fs.access(logPath, fs.constants.F_OK, (err) => {
     if (err) {
+      // Если файл не существует, создаем его
       fs.writeFile(logPath, logLine, (err) => {
         if (err) console.error("\u274c Ошибка при создании файла:", err.message);
         else console.log("\ud83d\udcdd Файл логов создан и лог записан.");
       });
     } else {
+      // Если файл существует, добавляем в него новую запись
       fs.appendFile(logPath, logLine, (err) => {
         if (err) console.error("\u274c Ошибка записи в лог:", err.message);
         else console.log("\ud83d\udcdd Лог записан:", logLine.trim());
@@ -52,9 +60,10 @@ function logUserAction(from, step, message) {
   });
 }
 
-// Получение бонусов
+// Функция получения бонусов с внешнего API
 async function getBonusBalance(login, password) {
   try {
+    // Авторизация и получение токена
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login,
       password,
@@ -68,6 +77,7 @@ async function getBonusBalance(login, password) {
       return null;
     }
 
+    // Запрос баланса по полученному токену
     const balanceResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -82,13 +92,14 @@ async function getBonusBalance(login, password) {
       return null;
     }
 
-    return amount;
+    return amount; // Возвращаем найденный баланс
   } catch (error) {
     console.error("\u274c Ошибка при получении бонусов:", error.message);
     return null;
   }
 }
 
+// Функция отправки текстовых сообщений через Meta WhatsApp API
 const sendMessageToMeta = async (to, message) => {
   try {
     const response = await axios.post(
@@ -116,6 +127,7 @@ const sendMessageToMeta = async (to, message) => {
   }
 };
 
+// Функция отправки шаблонных сообщений через Meta WhatsApp API
 const sendTemplateMessage = async (to, templateName, headerParams = [], buttons = []) => {
   try {
     const payload = {
@@ -129,6 +141,7 @@ const sendTemplateMessage = async (to, templateName, headerParams = [], buttons 
       }
     };
 
+    // Добавление параметров в заголовок шаблона
     if (headerParams.length > 0) {
       payload.template.components.push({
         type: "header",
@@ -136,6 +149,7 @@ const sendTemplateMessage = async (to, templateName, headerParams = [], buttons 
       });
     }
 
+    // Добавление кнопок в шаблон
     if (buttons.length > 0) {
       payload.template.components.push({
         type: "button",
@@ -145,6 +159,7 @@ const sendTemplateMessage = async (to, templateName, headerParams = [], buttons 
       });
     }
 
+    // Отправка шаблона через Meta API
     const response = await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
       payload,
@@ -162,6 +177,7 @@ const sendTemplateMessage = async (to, templateName, headerParams = [], buttons 
   }
 };
 
+// Подтверждение вебхука от Meta для валидации
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -181,9 +197,11 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+// Основной обработчик POST запроса от Meta (получение сообщений)
 app.post("/webhook", async (req, res) => {
   console.log("\ud83d\udce9 Входящее сообщение:", JSON.stringify(req.body, null, 2));
 
+  // Извлечение данных о сообщении
   const entry = req.body.entry?.[0];
   const changes = entry?.changes?.[0];
   const value = changes?.value;
@@ -194,6 +212,7 @@ app.post("/webhook", async (req, res) => {
   const from = messages.from;
   let message = null;
 
+  // Обработка различных типов сообщений (текст, кнопки и т. д.)
   if (messages.text) {
     message = messages.text.body?.trim();
   } else if (messages.button) {
@@ -209,6 +228,7 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(400);
   }
 
+  // Если сессия пользователя новая, отправляем приветственное сообщение
   if (!sessions[from]) {
     await sendTemplateMessage(from, "hello_client");
     sessions[from] = { step: "waiting_for_command" };
@@ -216,6 +236,7 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(200);
   }
 
+  // Логика обработки различных шагов сессии
   const session = sessions[from];
   logUserAction(from, session.step, message);
 
@@ -246,24 +267,26 @@ app.post("/webhook", async (req, res) => {
     const bonus = await getBonusBalance(session.login, session.password);
 
     if (bonus !== null) {
-      const templateParams = [{ type: "text", text: `${bonus} ₸` }];
-      const buttons = [
-        {
-          type: "url",
-          title: "Связаться с менеджером",
-          url: "https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы"
-        }
-      ];
-      await sendTemplateMessage(from, "bonus_client", templateParams);
-      session.step = "waiting_for_command";
-    } else {
-      await sendMessageToMeta(from, "\u274c Неверный ID или пароль. Попробуйте снова.\n\nВведите ваш ID:");
-      session.step = "waiting_for_login";
+  const templateParams = [{ type: "text", text: `${bonus} ₸` }];
+  const buttons = [
+    {
+      type: "url",
+      title: "Связаться с менеджером",
+      url: "https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы"
     }
+  ];
+  await sendTemplateMessage(from, "bonus_client", templateParams);
+       // Отправляем сообщение с ссылкой на WhatsApp менеджера, спрятанную в слово "Whatsapp"
+  const message = "Если хотите снять бонусы, нажмите на ссылку: [Whatsapp](https://wa.me/77774991275?text=Здравствуйте,%20хочу%20снять%20бонусы).";
+  await sendMessageToMeta(from, message);
+
+  session.step = "waiting_for_command";
+}
   }
   return res.sendStatus(200);
 });
 
+// Запуск сервера на указанном порту
 app.listen(PORT, () => {
   console.log(`\ud83d\ude80 Сервер запущен на порту ${PORT}`);
 });
