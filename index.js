@@ -57,6 +57,24 @@ async function getBonusBalance(login, password) {
   }
 }
 
+const getPromotionImages = async () => {
+  try {
+    const response = await axios.get(
+      "https://api.github.com/repos/Organicstore151/monthly-promotions/contents/images",
+      { headers: { "Accept": "application/vnd.github.v3+json" } }
+    );
+
+    const images = response.data
+      .filter(file => file.type === "file" && /\.(jpg|jpeg|png)$/i.test(file.name))
+      .map(file => `https://organicstore151.github.io/monthly-promotions/images/${file.name}`);
+
+    return images;
+  } catch (err) {
+    console.error("❌ Не удалось получить список изображений:", err.message);
+    return [];
+  }
+};
+
 // Отправка текстового сообщения
 const sendMessageToMeta = async (to, message) => {
   try {
@@ -194,7 +212,7 @@ app.post("/webhook", async (req, res) => {
   logUserAction(from, session.step, message);
   
 switch (session.step) {
-    case "waiting_for_command":
+    case "waiting_for_command": {
       if (message === "Узнать баланс бонусов") {
         await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
         session.step = "waiting_for_login";
@@ -208,6 +226,31 @@ switch (session.step) {
  } else if (message === "Сертификаты") {
   await sendPDF(from, "📄 Ознакомьтесь с нашими сертификатами качества", "https://organicstore151.github.io/certificate/certificates.pdf");
 
+} else if (message === "Акции этого месяца") {
+  const imageLinks = await getPromotionImages();
+  if (imageLinks.length === 0) {
+    await sendMessageToMeta(from, "❌ Пока нет доступных акций. Попробуйте позже.");
+  } else {
+    for (const link of imageLinks) {
+      await axios.post(
+        `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: from,
+          type: "image",
+          image: { link }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+  }
+}
+        
       } else if (message === "Каталог препаратов") {
         await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
       } else if (message === "Курс лечения") {
@@ -225,7 +268,7 @@ switch (session.step) {
         await sendMessageToMeta(from, "🤖 Я не понял ваш запрос. Выберите действие:\n\n1️⃣ Главное меню\n2️⃣ Связаться с менеджером");
       }
       break;
-
+}
         case "waiting_for_order_name":
       session.order.name = message;
       session.step = "waiting_for_order_items";
