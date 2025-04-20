@@ -104,8 +104,8 @@ const sendPDF = async (to, caption, pdfUrl) => {
   }
 };
 
-// Шаблон с параметрами
-const sendTemplateMessageWithParams = async (to, templateName, parameters) => {
+// Шаблон с параметрами — только в header
+const sendTemplateMessageWithParams = async (to, templateName, headerParams = []) => {
   try {
     await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -118,8 +118,12 @@ const sendTemplateMessageWithParams = async (to, templateName, parameters) => {
           language: { code: "ru" },
           components: [
             {
+              type: "header",
+              parameters: headerParams,
+            },
+            {
               type: "body",
-              parameters: parameters,
+              parameters: [],
             }
           ]
         },
@@ -131,13 +135,13 @@ const sendTemplateMessageWithParams = async (to, templateName, parameters) => {
         },
       }
     );
-    console.log(`📤 Шаблон "${templateName}" отправлен с параметрами`);
+    console.log(`📤 Шаблон "${templateName}" отправлен с параметром`);
   } catch (error) {
     console.error("❌ Ошибка отправки шаблона:", error.response?.data || error.message);
   }
 };
 
-// Простой шаблон (например, hello_client)
+// Отправка простого шаблона
 const sendTemplateMessage = async (to, templateName) => {
   await sendTemplateMessageWithParams(to, templateName, []);
 };
@@ -220,4 +224,3 @@ app.post("/webhook", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
-
