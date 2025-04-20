@@ -170,7 +170,6 @@ app.post("/webhook", async (req, res) => {
                 messageObj.interactive?.list_reply?.id || "";
   if (!firstMessagesSeen[from]) {
   firstMessagesSeen[from] = true;
-  sessions[from] = { step: "waiting_for_command" };
   await sendTemplateMessage(from, "hello_client");
   logUserAction(from, "new_user_after_restart", message);
   return res.sendStatus(200);
