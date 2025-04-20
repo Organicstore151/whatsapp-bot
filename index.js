@@ -18,13 +18,6 @@ app.use(bodyParser.json());
 const sessions = {};
 const logPath = path.join(__dirname, "user_behavior.log");
 
-// Функция сброса сессии
-function resetSession(from) {
-  sessions[from] = {
-    step: "waiting_for_command"
-  };
-}
-
 // Логирование
 function logUserAction(from, step, message) {
   const data = {
@@ -38,7 +31,7 @@ function logUserAction(from, step, message) {
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка логирования в таблицу:", err.message));
 
-  const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
+  const logLine = ${data.date} | ${data.phone} | ${data.step} | ${data.message}\n;
   fs.appendFile(logPath, logLine, (err) => {
     if (err) console.error("❌ Ошибка записи в лог:", err.message);
     else console.log("📝 Лог записан:", logLine.trim());
@@ -53,7 +46,7 @@ async function getBonusBalance(login, password) {
     if (!token) return null;
 
     const balanceResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: Bearer ${token} },
     });
 
     return balanceResponse.data.current.balance[0]?.amount || null;
@@ -67,7 +60,7 @@ async function getBonusBalance(login, password) {
 const sendMessageToMeta = async (to, message) => {
   try {
     await axios.post(
-      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages,
       {
         messaging_product: "whatsapp",
         to,
@@ -75,7 +68,7 @@ const sendMessageToMeta = async (to, message) => {
         text: { body: message },
       },
       {
-        headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` },
+        headers: { Authorization: Bearer ${process.env.META_ACCESS_TOKEN} },
       }
     );
     console.log("📤 Сообщение отправлено:", message);
@@ -88,7 +81,7 @@ const sendMessageToMeta = async (to, message) => {
 const sendPDF = async (to, caption, pdfUrl) => {
   try {
     await axios.post(
-      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages,
       {
         messaging_product: "whatsapp",
         to,
@@ -100,7 +93,7 @@ const sendPDF = async (to, caption, pdfUrl) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+          Authorization: Bearer ${process.env.META_ACCESS_TOKEN},
           "Content-Type": "application/json",
         },
       }
@@ -115,7 +108,7 @@ const sendPDF = async (to, caption, pdfUrl) => {
 const sendTemplateMessageWithParams = async (to, templateName, headerParams = []) => {
   try {
     await axios.post(
-      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages,
       {
         messaging_product: "whatsapp",
         to,
@@ -137,12 +130,12 @@ const sendTemplateMessageWithParams = async (to, templateName, headerParams = []
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+          Authorization: Bearer ${process.env.META_ACCESS_TOKEN},
           "Content-Type": "application/json",
         },
       }
     );
-    console.log(`📤 Шаблон "${templateName}" отправлен с параметром`);
+    console.log(📤 Шаблон "${templateName}" отправлен с параметром);
   } catch (error) {
     console.error("❌ Ошибка отправки шаблона:", error.response?.data || error.message);
   }
@@ -169,20 +162,15 @@ app.post("/webhook", async (req, res) => {
   if (!messageObj || !messageObj.from) return res.sendStatus(200);
 
   const from = messageObj.from;
-  const isNewUser = !sessions[from];
-  if (isNewUser) {
-    resetSession(from);
-    await sendTemplateMessage(from, "hello_client");
-    logUserAction(from, "new_user", "👋 Новый пользователь");
-    return res.sendStatus(200);
-  }
+  if (!sessions[from]) sessions[from] = { step: "waiting_for_command" };
 
+  // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
     const imageId = messageObj.image.id;
-    const imageUrl = `https://graph.facebook.com/v16.0/${imageId}`;
+    const imageUrl = https://graph.facebook.com/v16.0/${imageId};
     sessions[from].order = sessions[from].order || {};
     sessions[from].order.imageUrl = imageUrl;
-    return res.sendStatus(200);
+    return res.sendStatus(200); // Ждём текст с адресом
   }
 
   let message = messageObj.text?.body ||
@@ -190,14 +178,22 @@ app.post("/webhook", async (req, res) => {
                 messageObj.interactive?.button_reply?.id ||
                 messageObj.interactive?.list_reply?.id || "";
 
+  // 👋 Приветствие новых пользователей
+  if (!sessions[from]) {
+    await sendTemplateMessage(from, "hello_client");
+    sessions[from] = { step: "waiting_for_command" };
+    logUserAction(from, "new_user", message);
+    return res.sendStatus(200);
+  }
+
   const session = sessions[from];
   logUserAction(from, session.step, message);
-
-  switch (session.step) {
+  
+switch (session.step) {
     case "waiting_for_command":
       if (message === "Узнать баланс бонусов") {
-        session.step = "waiting_for_login";
         await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
+        session.step = "waiting_for_login";
       } else if (message === "Каталог препаратов") {
         await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
       } else if (message === "Курс лечения") {
@@ -206,15 +202,63 @@ app.post("/webhook", async (req, res) => {
         await sendPDF(from, "💰 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
       } else if (message === "Снять бонусы") {
         const managerLink = "https://wa.me/77774991275";
-        await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+        await sendMessageToMeta(from, ☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink});
       } else if (message === "Сделать заказ") {
-        resetSession(from);
-        session.step = "waiting_for_order_name";
         session.order = {};
-        await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:\n\n_Это нужно, чтобы менеджер связался с вами и уточнил детали._");
+        session.step = "waiting_for_order_name";
+        await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
       } else {
         await sendMessageToMeta(from, "🤖 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
       }
+      break;
+
+        case "waiting_for_order_name":
+      session.order.name = message;
+      session.step = "waiting_for_order_items";
+      await sendMessageToMeta(from,
+        "📝 *Укажите список препаратов, которые вы хотите заказать:*\n\n_Вы также можете прикрепить фото рецепта. Его увидит менеджер._"
+      );
+      break;
+
+    case "waiting_for_order_items":
+      session.order.items = message;
+      session.step = "waiting_for_order_address";
+      await sendMessageToMeta(from,
+        "🏠 *Укажите, пожалуйста, адрес доставки:*\n\n_Без него мы не сможем отправить заказ._"
+      );
+      break;
+
+    case "waiting_for_order_address":
+      session.order.address = message;
+      session.step = "waiting_for_order_confirm";
+      const summary = 🧾 Вот ваш заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address} +
+                      (session.order.imageUrl ? \n📸 Фото рецепта: ${session.order.imageUrl} : "") +
+                      \n\n_Проверьте, всё ли правильно._\n\n1️⃣ Подтвердить и отправить менеджеру\n2️⃣ Отменить заказ;
+      await sendMessageToMeta(from, summary);
+      break;
+
+    case "waiting_for_order_confirm":
+      if (message === "1") {
+        const final = 🛒 Новый заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}\n📞 Телефон: ${from} +
+                      (session.order.imageUrl ? \n📸 Фото рецепта: ${session.order.imageUrl} : "");
+        await sendMessageToMeta("77774991275", final);
+        await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы скоро свяжемся с вами.");
+        session.step = "waiting_for_command";
+        delete session.order;
+      } else if (message === "2") {
+        await sendMessageToMeta(from, "❌ Заказ отменён. Вы можете начать оформление заново в любое время.");
+        session.step = "waiting_for_command";
+        delete session.order;
+      } else {
+        await sendMessageToMeta(from, "🤖 Пожалуйста, выберите:\n1 — Подтвердить заказ\n2 — Отменить заказ");
+      }
+      break;
+
+
+    case "waiting_for_login":
+      session.login = message;
+      session.step = "waiting_for_password";
+      await sendMessageToMeta(from, "Спасибо! Теперь введите ваш пароль:");
       break;
 
     case "waiting_for_password":
@@ -223,15 +267,12 @@ app.post("/webhook", async (req, res) => {
         await sendTemplateMessageWithParams(from, "bonus_client", [
           { type: "text", text: bonus.toString() }
         ]);
-        console.log(`📤 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
-        session.step = "waiting_for_command";
+        console.log(📤 Отправлен шаблон bonus_client с бонусом: ${bonus});
       } else {
-        await sendMessageToMeta(from, "❌ Неверный логин или пароль. Попробуйте снова.\n\nПожалуйста, введите ваш ID (логин):");
-        session.step = "waiting_for_login";
+        await sendMessageToMeta(from, "❌ Неверный логин или пароль. Попробуйте снова.");
       }
+      session.step = "waiting_for_command";
       break;
-
-    // остальные case остаются без изменений ...
 
     default:
       session.step = "waiting_for_command";
@@ -240,9 +281,8 @@ app.post("/webhook", async (req, res) => {
 
   res.sendStatus(200);
 });
-
 // Запуск сервера
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
+  console.log(🚀 Сервер запущен на порту ${PORT});
 });
 
