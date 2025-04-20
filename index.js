@@ -267,7 +267,7 @@ app.post("/webhook", async (req, res) => {
       } else {
         await sendMessageToMeta(from, "\u274c Неверный логин или пароль. Попробуйте снова.");
       }
-      session.step = "waiting_for_command";
+      session.step = "waiting_for_login";
       break;
 
     default:
