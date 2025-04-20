@@ -212,63 +212,59 @@ app.post("/webhook", async (req, res) => {
   logUserAction(from, session.step, message);
   
 switch (session.step) {
-    case "waiting_for_command": {
-      if (message === "Узнать баланс бонусов") {
-        await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
-        session.step = "waiting_for_login";
-      } else if (message === "1") {
-        await sendTemplateMessage(from, "hello_client");
-      } else if (message === "2" || message === "Связаться с менеджером") {
-        const managerLink = "https://wa.me/77774991275";
-        await sendMessageToMeta(from, `📞 Свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
- } else if (message === "Информация о продукции") {
-  await sendTemplateMessage(from, "product_info_menu");
- } else if (message === "Сертификаты") {
-  await sendPDF(from, "📄 Ознакомьтесь с нашими сертификатами качества", "https://organicstore151.github.io/certificate/certificates.pdf");
-
-} else if (message === "Акции этого месяца") {
-  const imageLinks = await getPromotionImages();
-  if (imageLinks.length === 0) {
-    await sendMessageToMeta(from, "❌ Пока нет доступных акций. Попробуйте позже.");
-  } else {
-    for (const link of imageLinks) {
-      await axios.post(
-        `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: from,
-          type: "image",
-          image: { link }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
+   case "waiting_for_command": {
+  if (message === "Узнать баланс бонусов") {
+    await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
+    session.step = "waiting_for_login";
+  } else if (message === "1") {
+    await sendTemplateMessage(from, "hello_client");
+  } else if (message === "2" || message === "Связаться с менеджером") {
+    const managerLink = "https://wa.me/77774991275";
+    await sendMessageToMeta(from, `📞 Свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+  } else if (message === "Информация о продукции") {
+    await sendTemplateMessage(from, "product_info_menu");
+  } else if (message === "Сертификаты") {
+    await sendPDF(from, "📄 Ознакомьтесь с нашими сертификатами качества", "https://organicstore151.github.io/certificate/certificates.pdf");
+  } else if (message === "Акции этого месяца") {
+    const imageLinks = await getPromotionImages();
+    if (imageLinks.length === 0) {
+      await sendMessageToMeta(from, "❌ Пока нет доступных акций. Попробуйте позже.");
+    } else {
+      for (const link of imageLinks) {
+        await axios.post(
+          `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: from,
+            type: "image",
+            image: { link }
           },
-        }
-      );
-    }
-  }
-}
-        
-      } else if (message === "Каталог препаратов") {
-        await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
-      } else if (message === "Курс лечения") {
-        await sendPDF(from, "🧪 Рекомендации по применению", "https://organicstore151.github.io/comples/complex.pdf");
-      } else if (message === "Прайс-лист") {
-        await sendPDF(from, "💰 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
-      } else if (message === "Снять бонусы") {
-        const managerLink = "https://wa.me/77774991275";
-        await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
-      } else if (message === "Сделать заказ") {
-        session.order = {};
-        session.step = "waiting_for_order_name";
-        await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
-      } else {
-        await sendMessageToMeta(from, "🤖 Я не понял ваш запрос. Выберите действие:\n\n1️⃣ Главное меню\n2️⃣ Связаться с менеджером");
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
       }
     }
-      break;
+  } else if (message === "Каталог препаратов") {
+    await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
+  } else if (message === "Курс лечения") {
+    await sendPDF(from, "🧪 Рекомендации по применению", "https://organicstore151.github.io/comples/complex.pdf");
+  } else if (message === "Прайс-лист") {
+    await sendPDF(from, "💰 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
+  } else if (message === "Снять бонусы") {
+    const managerLink = "https://wa.me/77774991275";
+    await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+  } else if (message === "Сделать заказ") {
+    session.order = {};
+    session.step = "waiting_for_order_name";
+    await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
+  } else {
+    await sendMessageToMeta(from, "🤖 Я не понял ваш запрос. Выберите действие:\n\n1️⃣ Главное меню\n2️⃣ Связаться с менеджером");
+  }
+  break;
 }
         case "waiting_for_order_name":
       session.order.name = message;
