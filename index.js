@@ -31,7 +31,7 @@ function logUserAction(from, step, message) {
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка логирования в таблицу:", err.message));
 
-  const logLine = ${data.date} | ${data.phone} | ${data.step} | ${data.message}\n;
+  const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
   fs.appendFile(logPath, logLine, (err) => {
     if (err) console.error("❌ Ошибка записи в лог:", err.message);
     else console.log("📝 Лог записан:", logLine.trim());
