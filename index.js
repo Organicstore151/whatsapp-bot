@@ -180,21 +180,22 @@ app.post("/webhook", async (req, res) => {
       }
       break;
 
-    case "waiting_for_login":
-      session.login = message;
-      session.step = "waiting_for_password";
-      await sendMessageToMeta(from, "Теперь введите ваш пароль:");
-      break;
-
     case "waiting_for_password":
-      const bonus = await getBonusBalance(session.login, message);
-      if (bonus !== null) {
-        await sendMessageToMeta(from, `🎉 Ваш бонусный баланс: ${bonus} тенге`);
-      } else {
-        await sendMessageToMeta(from, "❌ Не удалось получить баланс. Проверьте данные и попробуйте снова.");
-      }
-      session.step = "waiting_for_command";
-      break;
+  const bonus = await getBonusBalance(session.login, message);
+  if (bonus !== null) {
+    // Передаем переменную с бонусом в шаблон
+    const templateParams = [
+      { type: "text", text: bonus.toString() } // Передаем бонус
+    ];
+
+    // Отправляем шаблон с кнопками и заголовком
+    await sendTemplateMessage(from, "bonus_balance_with_buttons", templateParams);
+    console.log(`📤 Отправлен шаблон с бонусом ${bonus} и кнопками`);
+  } else {
+    await sendMessageToMeta(from, "❌ Не удалось получить баланс. Проверьте данные и попробуйте снова.");
+  }
+  session.step = "waiting_for_command";
+  break;
 
     default:
       session.step = "waiting_for_command";
