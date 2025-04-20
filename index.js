@@ -198,6 +198,11 @@ switch (session.step) {
       if (message === "Узнать баланс бонусов") {
         await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
         session.step = "waiting_for_login";
+      } else if (message === "1") {
+        await sendTemplateMessage(from, "hello_client");
+      } else if (message === "2") {
+        const managerLink = "https://wa.me/77774991275";
+        await sendMessageToMeta(from, `📞 Свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
       } else if (message === "Каталог препаратов") {
         await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
       } else if (message === "Курс лечения") {
@@ -212,7 +217,7 @@ switch (session.step) {
         session.step = "waiting_for_order_name";
         await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
       } else {
-        await sendMessageToMeta(from, "🤖 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
+        await sendMessageToMeta(from, "🤖 Я не понял ваш запрос. Выберите действие:\n\n1️⃣ Главное меню\n2️⃣ Связаться с менеджером");
       }
       break;
 
@@ -277,12 +282,7 @@ switch (session.step) {
       }
       session.step = "waiting_for_command";
       break;
-
-    default:
-      session.step = "waiting_for_command";
-      await sendMessageToMeta(from, "🤖 Я готов помочь. Например, вы можете узнать бонусы или посмотреть каталог.");
-  }
-
+    
   res.sendStatus(200);
 });
 // Запуск сервера
