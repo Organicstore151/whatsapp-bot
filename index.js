@@ -167,7 +167,7 @@ app.post("/webhook", async (req, res) => {
   // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
     const imageId = messageObj.image.id;
-    const imageUrl = https://graph.facebook.com/v16.0/${imageId};
+    const imageUrl = `https://graph.facebook.com/v16.0/${imageId}`;
     sessions[from].order = sessions[from].order || {};
     sessions[from].order.imageUrl = imageUrl;
     return res.sendStatus(200); // Ждём текст с адресом
