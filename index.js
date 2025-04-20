@@ -239,8 +239,8 @@ switch (session.step) {
 
     case "waiting_for_order_confirm":
       if (message === "1") {
-        const final = 🛒 Новый заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}\n📞 Телефон: ${from} +
-                      (session.order.imageUrl ? \n📸 Фото рецепта: ${session.order.imageUrl} : "");
+        const final = `🛒 Новый заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}\n📞 Телефон: ${from}` +
+                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}` : "");
         await sendMessageToMeta("77774991275", final);
         await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы скоро свяжемся с вами.");
         session.step = "waiting_for_command";
