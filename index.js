@@ -203,6 +203,11 @@ switch (session.step) {
       } else if (message === "2") {
         const managerLink = "https://wa.me/77774991275";
         await sendMessageToMeta(from, `📞 Свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+ } else if (message === "Информация о продукции") {
+  await sendTemplateMessage(from, "product_info_menu");
+ } else if (message === "Сертификаты") {
+  await sendPDF(from, "📄 Ознакомьтесь с нашими сертификатами качества", "https://organicstore151.github.io/certificate/certificates.pdf");
+
       } else if (message === "Каталог препаратов") {
         await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
       } else if (message === "Курс лечения") {
