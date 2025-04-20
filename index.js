@@ -28,13 +28,13 @@ function logUserAction(from, step, message) {
   };
 
   axios.post(process.env.GOOGLE_SHEET_WEBHOOK_URL, data)
-    .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
-    .catch((err) => console.error("❌ Ошибка логирования в таблицу:", err.message));
+    .then(() => console.log("\ud83d\udce4 Лог отправлен в Google Таблицу"))
+    .catch((err) => console.error("\u274c Ошибка логирования в таблицу:", err.message));
 
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
   fs.appendFile(logPath, logLine, (err) => {
-    if (err) console.error("❌ Ошибка записи в лог:", err.message);
-    else console.log("📝 Лог записан:", logLine.trim());
+    if (err) console.error("\u274c Ошибка записи в лог:", err.message);
+    else console.log("\ud83d\udcdd Лог записан:", logLine.trim());
   });
 }
 
@@ -51,7 +51,7 @@ async function getBonusBalance(login, password) {
 
     return balanceResponse.data.current.balance[0]?.amount || null;
   } catch (error) {
-    console.error("❌ Ошибка получения бонусов:", error.message);
+    console.error("\u274c Ошибка получения бонусов:", error.message);
     return null;
   }
 }
@@ -71,9 +71,9 @@ const sendMessageToMeta = async (to, message) => {
         headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` },
       }
     );
-    console.log("📤 Сообщение отправлено:", message);
+    console.log("\ud83d\udce4 Сообщение отправлено:", message);
   } catch (err) {
-    console.error("❌ Ошибка при отправке:", err.response?.data || err.message);
+    console.error("\u274c Ошибка при отправке:", err.response?.data || err.message);
   }
 };
 
@@ -98,9 +98,9 @@ const sendPDF = async (to, caption, pdfUrl) => {
         },
       }
     );
-    console.log("📄 PDF отправлен:", caption);
+    console.log("\ud83d\udcc4 PDF отправлен:", caption);
   } catch (err) {
-    console.error("❌ Ошибка при отправке PDF:", err.response?.data || err.message);
+    console.error("\u274c Ошибка при отправке PDF:", err.response?.data || err.message);
   }
 };
 
@@ -135,9 +135,9 @@ const sendTemplateMessageWithParams = async (to, templateName, headerParams = []
         },
       }
     );
-    console.log(`📤 Шаблон "${templateName}" отправлен с параметром`);
+    console.log(`\ud83d\udce4 Шаблон "${templateName}" отправлен с параметром`);
   } catch (error) {
-    console.error("❌ Ошибка отправки шаблона:", error.response?.data || error.message);
+    console.error("\u274c Ошибка отправки шаблона:", error.response?.data || error.message);
   }
 };
 
@@ -150,7 +150,7 @@ const sendTemplateMessage = async (to, templateName) => {
 app.get("/webhook", (req, res) => {
   const { "hub.mode": mode, "hub.verify_token": token, "hub.challenge": challenge } = req.query;
   if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
-    console.log("✅ Webhook подтвержден");
+    console.log("\u2705 Webhook подтвержден");
     return res.status(200).send(challenge);
   }
   res.sendStatus(403);
@@ -162,15 +162,20 @@ app.post("/webhook", async (req, res) => {
   if (!messageObj || !messageObj.from) return res.sendStatus(200);
 
   const from = messageObj.from;
-  if (!sessions[from]) sessions[from] = { step: "waiting_for_command" };
+  const isNewUser = !sessions[from];
+  if (isNewUser) {
+    sessions[from] = { step: "waiting_for_command" };
+    await sendTemplateMessage(from, "hello_client");
+    logUserAction(from, "new_user", "\ud83d\udc4b Новый пользователь");
+    return res.sendStatus(200);
+  }
 
-  // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
     const imageId = messageObj.image.id;
     const imageUrl = `https://graph.facebook.com/v16.0/${imageId}`;
     sessions[from].order = sessions[from].order || {};
     sessions[from].order.imageUrl = imageUrl;
-    return res.sendStatus(200); // Ждём текст с адресом
+    return res.sendStatus(200);
   }
 
   let message = messageObj.text?.body ||
@@ -178,45 +183,37 @@ app.post("/webhook", async (req, res) => {
                 messageObj.interactive?.button_reply?.id ||
                 messageObj.interactive?.list_reply?.id || "";
 
-  // 👋 Приветствие новых пользователей
-  if (!sessions[from]) {
-    await sendTemplateMessage(from, "hello_client");
-    sessions[from] = { step: "waiting_for_command" };
-    logUserAction(from, "new_user", message);
-    return res.sendStatus(200);
-  }
-
   const session = sessions[from];
   logUserAction(from, session.step, message);
-  
-switch (session.step) {
+
+  switch (session.step) {
     case "waiting_for_command":
       if (message === "Узнать баланс бонусов") {
         await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
         session.step = "waiting_for_login";
       } else if (message === "Каталог препаратов") {
-        await sendPDF(from, "📗 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
+        await sendPDF(from, "\ud83d\udcd7 Ознакомьтесь с нашим каталогом препаратов", "https://organicstore151.github.io/whatsapp-catalog/catalog.pdf");
       } else if (message === "Курс лечения") {
-        await sendPDF(from, "🧪 Рекомендации по применению", "https://organicstore151.github.io/comples/complex.pdf");
+        await sendPDF(from, "\ud83e\uddea Рекомендации по применению", "https://organicstore151.github.io/comples/complex.pdf");
       } else if (message === "Прайс-лист") {
-        await sendPDF(from, "💰 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
+        await sendPDF(from, "\ud83d\udcb0 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
       } else if (message === "Снять бонусы") {
         const managerLink = "https://wa.me/77774991275";
-        await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+        await sendMessageToMeta(from, `\u260e\ufe0f Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
       } else if (message === "Сделать заказ") {
         session.order = {};
         session.step = "waiting_for_order_name";
-        await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
+        await sendMessageToMeta(from, "\ud83d\udc64 Пожалуйста, укажите ваше имя или ID клиента:\n\n_Это нужно, чтобы менеджер связался с вами и уточнил детали._");
       } else {
-        await sendMessageToMeta(from, "🤖 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
+        await sendMessageToMeta(from, "\ud83e\udd16 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
       }
       break;
 
-        case "waiting_for_order_name":
+    case "waiting_for_order_name":
       session.order.name = message;
       session.step = "waiting_for_order_items";
       await sendMessageToMeta(from,
-        "📝 *Укажите список препаратов, которые вы хотите заказать:*\n\n_Вы также можете прикрепить фото рецепта. Его увидит менеджер._"
+        "\ud83d\udcdd *Укажите список препаратов, которые вы хотите заказать:*\n\n_Вы также можете прикрепить фото рецепта. Его увидит менеджер._"
       );
       break;
 
@@ -224,36 +221,35 @@ switch (session.step) {
       session.order.items = message;
       session.step = "waiting_for_order_address";
       await sendMessageToMeta(from,
-        "🏠 *Укажите, пожалуйста, адрес доставки:*\n\n_Без него мы не сможем отправить заказ._"
+        "\ud83c\udfe0 *Укажите, пожалуйста, адрес доставки:*\n\n_Без него мы не сможем отправить заказ._"
       );
       break;
 
     case "waiting_for_order_address":
       session.order.address = message;
       session.step = "waiting_for_order_confirm";
-      const summary = `🧾 Вот ваш заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}` +
-                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}` : "") +
-                      `\n\n_Проверьте, всё ли правильно._\n\n1️⃣ Подтвердить и отправить менеджеру\n2️⃣ Отменить заказ`;
+      const summary = `\ud83d\uddde Вот ваш заказ:\n\n\ud83d\udc64 Имя / ID: ${session.order.name}\n\ud83d\udccb Препараты: ${session.order.items}\n\ud83c\udfe0 Адрес: ${session.order.address}` +
+                      (session.order.imageUrl ? `\n\ud83d\udcf8 Фото рецепта: ${session.order.imageUrl}` : "") +
+                      `\n\n_Проверьте, всё ли правильно._\n\n1\ufe0f\u20e3 Подтвердить и отправить менеджеру\n2\ufe0f\u20e3 Отменить заказ`;
       await sendMessageToMeta(from, summary);
       break;
 
     case "waiting_for_order_confirm":
       if (message === "1") {
-        const final = `🛒 Новый заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}\n📞 Телефон: ${from}` +
-                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}` : "");
+        const final = `\ud83d\uded2 Новый заказ:\n\n\ud83d\udc64 Имя / ID: ${session.order.name}\n\ud83d\udccb Препараты: ${session.order.items}\n\ud83c\udfe0 Адрес: ${session.order.address}\n\ud83d\udcf1 Телефон: ${from}` +
+                      (session.order.imageUrl ? `\n\ud83d\udcf8 Фото рецепта: ${session.order.imageUrl}` : "");
         await sendMessageToMeta("77774991275", final);
-        await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы скоро свяжемся с вами.");
+        await sendMessageToMeta(from, "\u2705 Спасибо! Ваш заказ передан менеджеру. Мы скоро свяжемся с вами.");
         session.step = "waiting_for_command";
         delete session.order;
       } else if (message === "2") {
-        await sendMessageToMeta(from, "❌ Заказ отменён. Вы можете начать оформление заново в любое время.");
+        await sendMessageToMeta(from, "\u274c Заказ отменён. Вы можете начать оформление заново в любое время.");
         session.step = "waiting_for_command";
         delete session.order;
       } else {
-        await sendMessageToMeta(from, "🤖 Пожалуйста, выберите:\n1 — Подтвердить заказ\n2 — Отменить заказ");
+        await sendMessageToMeta(from, "\ud83e\udd16 Пожалуйста, выберите:\n1 — Подтвердить заказ\n2 — Отменить заказ");
       }
       break;
-
 
     case "waiting_for_login":
       session.login = message;
@@ -267,21 +263,22 @@ switch (session.step) {
         await sendTemplateMessageWithParams(from, "bonus_client", [
           { type: "text", text: bonus.toString() }
         ]);
-        console.log(`📤 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
+        console.log(`\ud83d\udce4 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
       } else {
-        await sendMessageToMeta(from, "❌ Неверный логин или пароль. Попробуйте снова.");
+        await sendMessageToMeta(from, "\u274c Неверный логин или пароль. Попробуйте снова.");
       }
       session.step = "waiting_for_command";
       break;
 
     default:
       session.step = "waiting_for_command";
-      await sendMessageToMeta(from, "🤖 Я готов помочь. Например, вы можете узнать бонусы или посмотреть каталог.");
+      await sendMessageToMeta(from, "\ud83e\udd16 Я готов помочь. Например, вы можете узнать бонусы или посмотреть каталог.");
   }
 
   res.sendStatus(200);
 });
+
 // Запуск сервера
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
+  console.log(`\ud83d\ude80 Сервер запущен на порту ${PORT}`);
 });
