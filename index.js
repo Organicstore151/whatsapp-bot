@@ -176,8 +176,8 @@ app.post("/webhook", async (req, res) => {
 
   const session = sessions[from];
   logUserAction(from, session.step, message);
-
-  switch (session.step) {
+  
+switch (session.step) {
     case "waiting_for_command":
       if (message === "Узнать баланс бонусов") {
         await sendMessageToMeta(from, "Пожалуйста, введите ваш ID (логин):");
@@ -191,9 +191,39 @@ app.post("/webhook", async (req, res) => {
       } else if (message === "Снять бонусы") {
         const managerLink = "https://wa.me/77774991275";
         await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
+      } else if (message === "Сделать заказ") {
+        session.order = {};
+        session.step = "waiting_for_order_name";
+        await sendMessageToMeta(from, "👤 Пожалуйста, укажите ваше имя или ID клиента:");
       } else {
         await sendMessageToMeta(from, "🤖 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
       }
+      break;
+
+    case "waiting_for_order_name":
+      session.order.name = message;
+      session.step = "waiting_for_order_items";
+      await sendMessageToMeta(from, "📝 Укажите список препаратов, которые вы хотите заказать:");
+      break;
+
+    case "waiting_for_order_items":
+      session.order.items = message;
+      session.step = "waiting_for_order_address";
+      await sendMessageToMeta(from, "📦 Укажите адрес доставки. Если у вас есть фото рецепта, вы можете отправить его перед этим сообщением.");
+      break;
+
+    case "waiting_for_order_address":
+      session.order.address = message;
+      const orderSummary = `🛒 Новый заказ от клиента:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес доставки: ${session.order.address}\n📞 Телефон клиента: ${from}`;
+      
+      // Отправка клиенту подтверждения
+      await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы свяжемся с вами в ближайшее время.");
+
+      // Отправка менеджеру
+      await sendMessageToMeta("77774991275", orderSummary);
+
+      session.step = "waiting_for_command";
+      delete session.order;
       break;
 
     case "waiting_for_login":
@@ -222,7 +252,6 @@ app.post("/webhook", async (req, res) => {
 
   res.sendStatus(200);
 });
-
 // Запуск сервера
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
