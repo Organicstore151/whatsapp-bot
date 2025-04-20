@@ -188,6 +188,10 @@ app.post("/webhook", async (req, res) => {
         await sendPDF(from, "🧪 Рекомендации по применению", "https://organicstore151.github.io/comples/complex.pdf");
       } else if (message === "Прайс-лист") {
         await sendPDF(from, "💰 Актуальный прайс-лист", "https://organicstore151.github.io/price/price.pdf");
+      } else if (message === "Снять бонусы") {
+  const managerLink = "https://wa.me/77774991275";
+  await sendMessageToMeta(from, `☎️ Чтобы снять бонусы, свяжитесь с менеджером:\n👉 [Написать в WhatsApp](${managerLink})`);
+      }
       } else {
         await sendMessageToMeta(from, "🤖 Не понял ваш запрос. Доступные команды:\n- Узнать баланс бонусов\n- Каталог препаратов\n- Курс лечения\n- Прайс-лист");
       }
