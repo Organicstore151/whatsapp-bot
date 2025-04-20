@@ -267,7 +267,7 @@ switch (session.step) {
         await sendTemplateMessageWithParams(from, "bonus_client", [
           { type: "text", text: bonus.toString() }
         ]);
-        console.log(📤 Отправлен шаблон bonus_client с бонусом: ${bonus});
+        console.log(`📤 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
       } else {
         await sendMessageToMeta(from, "❌ Неверный логин или пароль. Попробуйте снова.");
       }
