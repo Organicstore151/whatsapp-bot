@@ -218,6 +218,9 @@ switch (session.step) {
     session.step = "waiting_for_login";
   } else if (message === "1") {
     await sendTemplateMessage(from, "hello_client");
+ } else if (message === "Консультация врача") {
+  const doctorLink = "https://wa.me/77772419972";
+  await sendMessageToMeta(from, `👨‍⚕️ Для консультации с врачом перейдите по ссылке:\n${doctorLink}`);
   } else if (message === "2" || message === "Связаться с менеджером") {
     const managerLink = "https://wa.me/77774991275";
     await sendMessageToMeta(from, `📞 Свяжитесь с менеджером по WhatsApp:\n${managerLink}`);
