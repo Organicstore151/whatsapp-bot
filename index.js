@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 const sessions = {};
 const logPath = path.join(__dirname, "user_behavior.log");
 
-// Функция логирования действий
+// Логирование
 function logUserAction(from, step, message) {
   const data = {
     date: new Date().toISOString(),
@@ -27,12 +27,10 @@ function logUserAction(from, step, message) {
     message,
   };
 
-  // Лог в Google Таблицу
   axios.post(process.env.GOOGLE_SHEET_WEBHOOK_URL, data)
     .then(() => console.log("📤 Лог отправлен в Google Таблицу"))
     .catch((err) => console.error("❌ Ошибка логирования в таблицу:", err.message));
 
-  // Лог в файл
   const logLine = `${data.date} | ${data.phone} | ${data.step} | ${data.message}\n`;
   fs.appendFile(logPath, logLine, (err) => {
     if (err) console.error("❌ Ошибка записи в лог:", err.message);
@@ -61,7 +59,7 @@ async function getBonusBalance(login, password) {
 // Отправка текстового сообщения
 const sendMessageToMeta = async (to, message) => {
   try {
-    const response = await axios.post(
+    await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
@@ -106,8 +104,8 @@ const sendPDF = async (to, caption, pdfUrl) => {
   }
 };
 
-// Шаблонное сообщение
-const sendTemplateMessage = async (to, templateName) => {
+// Шаблон с параметрами
+const sendTemplateMessageWithParams = async (to, templateName, parameters) => {
   try {
     await axios.post(
       `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
@@ -118,6 +116,12 @@ const sendTemplateMessage = async (to, templateName) => {
         template: {
           name: templateName,
           language: { code: "ru" },
+          components: [
+            {
+              type: "body",
+              parameters: parameters,
+            }
+          ]
         },
       },
       {
@@ -127,10 +131,15 @@ const sendTemplateMessage = async (to, templateName) => {
         },
       }
     );
-    console.log(`📤 Шаблонное сообщение "${templateName}" отправлено`);
+    console.log(`📤 Шаблон "${templateName}" отправлен с параметрами`);
   } catch (error) {
-    console.error("❌ Ошибка при отправке шаблона:", error.response?.data || error.message);
+    console.error("❌ Ошибка отправки шаблона:", error.response?.data || error.message);
   }
+};
+
+// Простой шаблон (например, hello_client)
+const sendTemplateMessage = async (to, templateName) => {
+  await sendTemplateMessageWithParams(to, templateName, []);
 };
 
 // Webhook верификация
@@ -143,7 +152,7 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-// Webhook - входящее сообщение
+// Обработка входящих сообщений
 app.post("/webhook", async (req, res) => {
   const messageObj = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   if (!messageObj) return res.sendStatus(200);
@@ -180,22 +189,24 @@ app.post("/webhook", async (req, res) => {
       }
       break;
 
-    case "waiting_for_password":
-  const bonus = await getBonusBalance(session.login, message);
-  if (bonus !== null) {
-    // Передаем переменную с бонусом в шаблон
-    const templateParams = [
-      { type: "text", text: bonus.toString() } // Передаем бонус
-    ];
+    case "waiting_for_login":
+      session.login = message;
+      session.step = "waiting_for_password";
+      await sendMessageToMeta(from, "Спасибо! Теперь введите ваш пароль:");
+      break;
 
-    // Отправляем шаблон с кнопками и заголовком
-    await sendTemplateMessage(from, "bonus_balance_with_buttons", templateParams);
-    console.log(`📤 Отправлен шаблон с бонусом ${bonus} и кнопками`);
-  } else {
-    await sendMessageToMeta(from, "❌ Не удалось получить баланс. Проверьте данные и попробуйте снова.");
-  }
-  session.step = "waiting_for_command";
-  break;
+    case "waiting_for_password":
+      const bonus = await getBonusBalance(session.login, message);
+      if (bonus !== null) {
+        await sendTemplateMessageWithParams(from, "bonus_client", [
+          { type: "text", text: bonus.toString() }
+        ]);
+        console.log(`📤 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
+      } else {
+        await sendMessageToMeta(from, "❌ Неверный логин или пароль. Попробуйте снова.");
+      }
+      session.step = "waiting_for_command";
+      break;
 
     default:
       session.step = "waiting_for_command";
@@ -209,3 +220,4 @@ app.post("/webhook", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
+
