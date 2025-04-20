@@ -159,9 +159,18 @@ app.get("/webhook", (req, res) => {
 // Обработка входящих сообщений
 app.post("/webhook", async (req, res) => {
   const messageObj = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!messageObj) return res.sendStatus(200);
+if (!messageObj) return res.sendStatus(200);
 
-  const from = messageObj.from;
+const from = messageObj.from;
+const session = sessions[from];
+
+// Обработка фото рецепта
+if (messageObj.type === "image" && session?.step === "waiting_for_order_address") {
+  const imageId = messageObj.image.id;
+  const imageUrl = `https://graph.facebook.com/v16.0/${imageId}`;
+  session.order.imageUrl = imageUrl;
+  return res.sendStatus(200); // Ждём текст с адресом
+}
   let message = messageObj.text?.body ||
                 messageObj.button?.payload ||
                 messageObj.interactive?.button_reply?.id ||
@@ -200,31 +209,48 @@ switch (session.step) {
       }
       break;
 
-    case "waiting_for_order_name":
+        case "waiting_for_order_name":
       session.order.name = message;
       session.step = "waiting_for_order_items";
-      await sendMessageToMeta(from, "📝 Укажите список препаратов, которые вы хотите заказать:");
+      await sendMessageToMeta(from,
+        "📝 *Укажите список препаратов, которые вы хотите заказать:*\n\n_Вы также можете прикрепить фото рецепта. Его увидит менеджер._"
+      );
       break;
 
     case "waiting_for_order_items":
       session.order.items = message;
       session.step = "waiting_for_order_address";
-      await sendMessageToMeta(from, "📦 Укажите адрес доставки. Если у вас есть фото рецепта, вы можете отправить его перед этим сообщением.");
+      await sendMessageToMeta(from,
+        "🏠 *Укажите, пожалуйста, адрес доставки:*\n\n_Без него мы не сможем отправить заказ._"
+      );
       break;
 
     case "waiting_for_order_address":
       session.order.address = message;
-      const orderSummary = `🛒 Новый заказ от клиента:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес доставки: ${session.order.address}\n📞 Телефон клиента: ${from}`;
-      
-      // Отправка клиенту подтверждения
-      await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы свяжемся с вами в ближайшее время.");
-
-      // Отправка менеджеру
-      await sendMessageToMeta("77774991275", orderSummary);
-
-      session.step = "waiting_for_command";
-      delete session.order;
+      session.step = "waiting_for_order_confirm";
+      const summary = `🧾 Вот ваш заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}` +
+                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}` : "") +
+                      `\n\n_Проверьте, всё ли правильно._\n\n1️⃣ Подтвердить и отправить менеджеру\n2️⃣ Отменить заказ`;
+      await sendMessageToMeta(from, summary);
       break;
+
+    case "waiting_for_order_confirm":
+      if (message === "1") {
+        const final = `🛒 Новый заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}\n📞 Телефон: ${from}` +
+                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}` : "");
+        await sendMessageToMeta("77774991275", final);
+        await sendMessageToMeta(from, "✅ Спасибо! Ваш заказ передан менеджеру. Мы скоро свяжемся с вами.");
+        session.step = "waiting_for_command";
+        delete session.order;
+      } else if (message === "2") {
+        await sendMessageToMeta(from, "❌ Заказ отменён. Вы можете начать оформление заново в любое время.");
+        session.step = "waiting_for_command";
+        delete session.order;
+      } else {
+        await sendMessageToMeta(from, "🤖 Пожалуйста, выберите:\n1 — Подтвердить заказ\n2 — Отменить заказ");
+      }
+      break;
+
 
     case "waiting_for_login":
       session.login = message;
