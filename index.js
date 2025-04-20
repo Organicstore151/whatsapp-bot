@@ -162,6 +162,13 @@ app.post("/webhook", async (req, res) => {
   if (!messageObj || !messageObj.from) return res.sendStatus(200);
 
   const from = messageObj.from;
+  if (!firstMessagesSeen[from]) {
+  firstMessagesSeen[from] = true;
+  sessions[from] = { step: "waiting_for_command" };
+  await sendTemplateMessage(from, "hello_client");
+  logUserAction(from, "new_user_after_restart", message);
+  return res.sendStatus(200);
+}
   if (!sessions[from]) sessions[from] = { step: "waiting_for_command" };
 
   // 📸 Обработка фото рецепта
