@@ -282,7 +282,7 @@ switch (session.step) {
       }
       session.step = "waiting_for_command";
       break;
-    
+   } 
   res.sendStatus(200);
 });
 // Запуск сервера
