@@ -163,6 +163,11 @@ app.post("/webhook", async (req, res) => {
   if (!messageObj || !messageObj.from) return res.sendStatus(200);
 
   const from = messageObj.from;
+  if (!sessions[from]) sessions[from] = { step: "waiting_for_command" };
+  let message = messageObj.text?.body ||
+                messageObj.button?.payload ||
+                messageObj.interactive?.button_reply?.id ||
+                messageObj.interactive?.list_reply?.id || "";
   if (!firstMessagesSeen[from]) {
   firstMessagesSeen[from] = true;
   sessions[from] = { step: "waiting_for_command" };
@@ -170,9 +175,7 @@ app.post("/webhook", async (req, res) => {
   logUserAction(from, "new_user_after_restart", message);
   return res.sendStatus(200);
 }
-  if (!sessions[from]) sessions[from] = { step: "waiting_for_command" };
-
-  // 📸 Обработка фото рецепта
+ // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
     const imageId = messageObj.image.id;
     const imageUrl = `https://graph.facebook.com/v16.0/${imageId}`;
@@ -180,12 +183,6 @@ app.post("/webhook", async (req, res) => {
     sessions[from].order.imageUrl = imageUrl;
     return res.sendStatus(200); // Ждём текст с адресом
   }
-
-  let message = messageObj.text?.body ||
-                messageObj.button?.payload ||
-                messageObj.interactive?.button_reply?.id ||
-                messageObj.interactive?.list_reply?.id || "";
-
   // 👋 Приветствие новых пользователей
   if (!sessions[from]) {
   sessions[from] = { step: "waiting_for_command" };
