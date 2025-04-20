@@ -68,7 +68,7 @@ const sendMessageToMeta = async (to, message) => {
         text: { body: message },
       },
       {
-        headers: { Authorization: Bearer ${process.env.META_ACCESS_TOKEN} },
+        headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` },
       }
     );
     console.log("📤 Сообщение отправлено:", message);
@@ -81,7 +81,7 @@ const sendMessageToMeta = async (to, message) => {
 const sendPDF = async (to, caption, pdfUrl) => {
   try {
     await axios.post(
-      https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages,
+      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
         to,
@@ -93,7 +93,7 @@ const sendPDF = async (to, caption, pdfUrl) => {
       },
       {
         headers: {
-          Authorization: Bearer ${process.env.META_ACCESS_TOKEN},
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
       }
@@ -108,7 +108,7 @@ const sendPDF = async (to, caption, pdfUrl) => {
 const sendTemplateMessageWithParams = async (to, templateName, headerParams = []) => {
   try {
     await axios.post(
-      https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages,
+      `https://graph.facebook.com/v16.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: "whatsapp",
         to,
@@ -130,12 +130,12 @@ const sendTemplateMessageWithParams = async (to, templateName, headerParams = []
       },
       {
         headers: {
-          Authorization: Bearer ${process.env.META_ACCESS_TOKEN},
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
       }
     );
-    console.log(📤 Шаблон "${templateName}" отправлен с параметром);
+    console.log(`📤 Шаблон "${templateName}" отправлен с параметром`);
   } catch (error) {
     console.error("❌ Ошибка отправки шаблона:", error.response?.data || error.message);
   }
