@@ -180,11 +180,11 @@ app.post("/webhook", async (req, res) => {
 
   // 👋 Приветствие новых пользователей
   if (!sessions[from]) {
-    await sendTemplateMessage(from, "hello_client");
-    sessions[from] = { step: "waiting_for_command" };
-    logUserAction(from, "new_user", message);
-    return res.sendStatus(200);
-  }
+  sessions[from] = { step: "waiting_for_command" };
+  await sendTemplateMessage(from, "hello_client");
+  logUserAction(from, "new_user", message);
+  return res.sendStatus(200);
+}
 
   const session = sessions[from];
   logUserAction(from, session.step, message);
