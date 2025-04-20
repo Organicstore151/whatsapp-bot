@@ -46,7 +46,7 @@ async function getBonusBalance(login, password) {
     if (!token) return null;
 
     const balanceResponse = await axios.get("https://lk.peptides1.ru/api/partners/current/closing-info", {
-      headers: { Authorization: Bearer ${token} },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     return balanceResponse.data.current.balance[0]?.amount || null;
