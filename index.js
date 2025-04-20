@@ -16,6 +16,7 @@ app.use(bodyParser.json());
 
 // Сессии по номерам телефонов
 const sessions = {};
+const firstMessagesSeen = {};
 const logPath = path.join(__dirname, "user_behavior.log");
 
 // Логирование
