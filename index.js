@@ -231,9 +231,9 @@ switch (session.step) {
     case "waiting_for_order_address":
       session.order.address = message;
       session.step = "waiting_for_order_confirm";
-      const summary =  🧾 Вот ваш заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address} +
-                      (session.order.imageUrl ? \n📸 Фото рецепта: ${session.order.imageUrl} : "") +
-                      \n\n_Проверьте, всё ли правильно._\n\n1️⃣ Подтвердить и отправить менеджеру\n2️⃣ Отменить заказ;
+      const summary =  `🧾 Вот ваш заказ:\n\n👤 Имя / ID: ${session.order.name}\n📋 Препараты: ${session.order.items}\n🏠 Адрес: ${session.order.address}` +
+                      (session.order.imageUrl ? `\n📸 Фото рецепта: ${session.order.imageUrl}`: "") +
+                     `\n\n_Проверьте, всё ли правильно._\n\n1️⃣ Подтвердить и отправить менеджеру\n2️⃣ Отменить заказ`;
       await sendMessageToMeta(from, summary);
       break;
 
