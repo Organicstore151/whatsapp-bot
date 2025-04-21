@@ -325,7 +325,7 @@ switch (session.step) {
     case "waiting_for_password":
       const bonus = await getBonusBalance(session.login, message);
       if (bonus !== null) {
-        await sendTemplateMessageWithParams(from, "bonus_client", [
+        await sendTemplateMessageWithParams(from, "bonus_client_new", [
           { type: "text", text: bonus.toString() }
         ]);
         console.log(`📤 Отправлен шаблон bonus_client с бонусом: ${bonus}`);
