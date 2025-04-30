@@ -342,3 +342,80 @@ app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
 
+const axios = require("axios");
+
+const sendTestNewsletter = async () => {
+  try {
+    console.log("🚀 Запуск sendTestNewsletter...");
+
+    // Авторизация на lk.peptides1.ru
+    console.log("🔐 Авторизация...");
+    const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
+      login: process.env.LOGIN,
+      password: process.env.PASSWORD,
+    });
+
+    const token = authResponse.data.token;
+    console.log("✅ Авторизация успешна");
+
+    // Получение списка партнёров
+    console.log("📥 Получение списка партнёров...");
+    const partnersResponse = await axios.get(
+      "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const partners = partnersResponse.data;
+    console.log(`👥 Получено партнёров: ${partners.length}`);
+
+    const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
+    const targetPhone = process.env.TEST_PHONE;
+
+    const target = partners.find((p) =>
+      normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
+    );
+
+    if (!target) {
+      console.log("❌ Пользователь с таким номером не найден.");
+      return;
+    }
+
+    const firstName = target.partner?.person?.first_name || "Без имени";
+    const middleName = target.partner?.person?.middle_name || "";
+    const fullName = `${firstName} ${middleName}`.trim();
+    const balance = target.account_balance || 0;
+
+    const recipientPhone = `+${normalizePhone(target.partner?.person?.phone)}`;
+    console.log(`📨 Отправка сообщения на ${recipientPhone} (${fullName})...`);
+
+    // Отправка через Meta API
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: recipientPhone,
+        type: "text",
+        text: {
+          body: `Здравствуйте, ${fullName}! Ваш бонусный баланс составляет: ${balance} ₸.`,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log(`✅ Сообщение успешно отправлено на ${recipientPhone}`);
+  } catch (error) {
+    console.error("❌ Ошибка при отправке тестовой рассылки:", error?.response?.data || error.message);
+  }
+};
+
+sendTestNewsletter();
+
