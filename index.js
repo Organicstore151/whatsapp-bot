@@ -393,22 +393,37 @@ const sendTestNewsletter = async () => {
 
     // Отправка через Meta API
     await axios.post(
-      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: recipientPhone,
-        type: "text",
-        text: {
-          body: `Здравствуйте, ${fullName}! Ваш бонусный баланс составляет: ${balance} ₸.`,
+  `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+  {
+    messaging_product: "whatsapp",
+    to: recipientPhone,
+    type: "template",
+    template: {
+      name: "bonus_rassylka", // имя шаблона как указано в Meta
+      language: { code: "ru" },
+      components: [
+        {
+          type: "header",
+          parameters: [
+            { type: "text", text: fullName } // {{1}} в заголовке
+          ],
         },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: balance.toString() } // {{1}} в теле
+          ],
         },
-      }
-    );
+      ],
+    },
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+  }
+);
 
     console.log(`✅ Сообщение успешно отправлено на ${recipientPhone}`);
   } catch (error) {
