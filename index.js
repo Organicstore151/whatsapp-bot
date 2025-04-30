@@ -6,7 +6,6 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 const cron = require("node-cron");
-
 // Создание приложения Express
 const app = express();
 const PORT = process.env.PORT || 3000;
