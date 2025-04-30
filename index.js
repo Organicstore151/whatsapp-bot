@@ -342,7 +342,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
 
-const axios = require("axios");
 
 const sendTestNewsletter = async () => {
   try {
