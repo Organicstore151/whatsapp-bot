@@ -5,6 +5,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
+const cron = require("node-cron");
 
 // Создание приложения Express
 const app = express();
@@ -353,11 +354,6 @@ switch (session.step) {
   res.sendStatus(200);
 });
 // Запуск сервера
-app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
-});
-
-
 const sendTestNewsletter = async () => {
   try {
     console.log("🚀 Запуск sendTestNewsletter...");
@@ -446,5 +442,16 @@ const sendTestNewsletter = async () => {
   }
 };
 
-sendTestNewsletter();
 
+app.get("/run-newsletter", async (req, res) => {
+  try {
+    await sendTestNewsletter();
+    res.send("📨 Рассылка успешно запущена вручную.");
+  } catch (err) {
+    console.error("❌ Ошибка при запуске рассылки вручную:", err.message);
+    res.status(500).send("❌ Ошибка при запуске рассылки.");
+  }
+});
+app.listen(PORT, () => {
+  console.log(`🚀 Сервер запущен на порту ${PORT}`);
+});
