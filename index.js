@@ -442,7 +442,6 @@ const sendTestNewsletter = async () => {
   }
 };
 
-
 app.get("/run-newsletter", async (req, res) => {
   try {
     await sendTestNewsletter();
