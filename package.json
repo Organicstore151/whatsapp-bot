@@ -13,9 +13,10 @@
     "body-parser": "^2.2.0",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "google-spreadsheet": "^4.1.4",
+    "google-spreadsheet": "^3.3.0",
+    "node-cron": "^3.0.3",
     "openai": "^4.94.0",
-    "twilio": "^5.5.1",
-    "google-spreadsheet": "^3.3.0"
+    "sharp": "^0.34.1",
+    "twilio": "^5.5.1"
   }
 }
