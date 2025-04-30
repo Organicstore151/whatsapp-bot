@@ -186,10 +186,27 @@ app.post("/webhook", async (req, res) => {
                 messageObj.button?.payload ||
                 messageObj.interactive?.button_reply?.id ||
                 messageObj.interactive?.list_reply?.id || "";
-  if (!firstMessagesSeen[from]) {
+ if (!firstMessagesSeen[from]) {
   firstMessagesSeen[from] = true;
-  await sendTemplateMessage(from, "hello_client");
+
+  const knownCommands = [
+    "Сделать заказ",
+    "Узнать баланс бонусов",
+    "Связаться с менеджером",
+    "Каталог препаратов",
+    "Прайс-лист",
+    "Курс лечения",
+    "Главное меню",
+    "Акции этого месяца",
+    "Сертификаты"
+  ];
+
+  if (!knownCommands.includes(message)) {
+    await sendTemplateMessage(from, "hello_client");
+  }
+
   logUserAction(from, "new_user_after_restart", message);
+}
 }
  // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
