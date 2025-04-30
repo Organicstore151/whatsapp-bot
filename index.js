@@ -404,7 +404,7 @@ const sendTestNewsletter = async () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.META_TOKEN}`,
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
       }
