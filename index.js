@@ -190,7 +190,6 @@ app.post("/webhook", async (req, res) => {
   firstMessagesSeen[from] = true;
   await sendTemplateMessage(from, "hello_client");
   logUserAction(from, "new_user_after_restart", message);
-  return res.sendStatus(200);
 }
  // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
