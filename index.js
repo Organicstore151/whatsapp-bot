@@ -207,7 +207,6 @@ app.post("/webhook", async (req, res) => {
 
   logUserAction(from, "new_user_after_restart", message);
 }
-}
  // 📸 Обработка фото рецепта
   if (messageObj.type === "image" && sessions[from].step === "waiting_for_order_address") {
     const imageId = messageObj.image.id;
