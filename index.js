@@ -357,7 +357,7 @@ const sendTestNewsletter = async () => {
   try {
     console.log("🚀 Запуск sendTestNewsletter...");
 
-    // Авторизация на lk.peptides1.ru
+    // Авторизация
     console.log("🔐 Авторизация...");
     const authResponse = await axios.post("https://lk.peptides1.ru/api/auth/sign-in", {
       login: process.env.LOGIN,
@@ -367,80 +367,87 @@ const sendTestNewsletter = async () => {
     const token = authResponse.data.token;
     console.log("✅ Авторизация успешна");
 
-    // Получение списка партнёров
-    console.log("📥 Получение списка партнёров...");
-    const partnersResponse = await axios.get(
-      "https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=100&offset=0",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    // Пагинация: получаем всех партнёров
+    console.log("📥 Получение полного списка партнёров...");
+    let allPartners = [];
+    let offset = 0;
+    const limit = 100;
 
-    const partners = partnersResponse.data;
-    console.log(`👥 Получено партнёров: ${partners.length}`);
+    while (true) {
+      const response = await axios.get(
+        `https://lk.peptides1.ru/api/dealers/231253/partners?with_side_volume=true&limit=${limit}&offset=${offset}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-    const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
-    const targetPhone = process.env.TEST_PHONE;
+      const batch = response.data;
+      if (batch.length === 0) break;
 
-    const target = partners.find((p) =>
-      normalizePhone(p.partner?.person?.phone).endsWith(targetPhone)
-    );
-
-    if (!target) {
-      console.log("❌ Пользователь с таким номером не найден.");
-      return;
+      allPartners = allPartners.concat(batch);
+      offset += limit;
     }
 
-    const firstName = target.partner?.person?.first_name || "Без имени";
-    const middleName = target.partner?.person?.middle_name || "";
-    const fullName = `${firstName} ${middleName}`.trim();
-    const balance = target.account_balance || 0;
+    console.log(`👥 Загружено партнёров: ${allPartners.length}`);
 
-    const recipientPhone = `+${normalizePhone(target.partner?.person?.phone)}`;
-    console.log(`📨 Отправка сообщения на ${recipientPhone} (${fullName})...`);
+    const normalizePhone = (phone) => phone?.replace(/\D/g, "") || "";
 
-    // Отправка через Meta API
-    await axios.post(
-  `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-  {
-    messaging_product: "whatsapp",
-    to: recipientPhone,
-    type: "template",
-    template: {
-      name: "bonus_rassylka2", // имя шаблона как указано в Meta
-      language: { code: "ru" },
-      components: [
-        {
-          type: "header",
-          parameters: [
-            { type: "text", text: fullName } // {{1}} в заголовке
-          ],
-        },
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: balance.toString() } // {{1}} в теле
-          ],
-        },
-      ],
-    },
-  },
-  {
-    headers: {
-      Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-  }
-);
+    for (const partner of allPartners) {
+      const phone = normalizePhone(partner.partner?.person?.phone);
+      const balance = partner.account_balance || 0;
 
-    console.log(`✅ Сообщение успешно отправлено на ${recipientPhone}`);
+      if (!phone || balance < 1000) continue;
+
+      const firstName = partner.partner?.person?.first_name || "Без имени";
+      const middleName = partner.partner?.person?.middle_name || "";
+      const fullName = `${firstName} ${middleName}`.trim();
+      const recipientPhone = `+${phone}`;
+
+      console.log(`📨 Отправка сообщения на ${recipientPhone} (${fullName})...`);
+
+      try {
+        await axios.post(
+          `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: recipientPhone,
+            type: "template",
+            template: {
+              name: "bonus_rassylka2",
+              language: { code: "ru" },
+              components: [
+                {
+                  type: "header",
+                  parameters: [
+                    { type: "text", text: fullName }
+                  ],
+                },
+                {
+                  type: "body",
+                  parameters: [
+                    { type: "text", text: balance.toString() }
+                  ],
+                },
+              ],
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        console.log(`✅ Отправлено на ${recipientPhone}, баланс: ${balance}`);
+      } catch (err) {
+        console.error(`❌ Ошибка при отправке на ${recipientPhone}:`, err.response?.data || err.message);
+      }
+    }
   } catch (error) {
-    console.error("❌ Ошибка при отправке тестовой рассылки:", error?.response?.data || error.message);
+    console.error("❌ Ошибка при выполнении рассылки:", error?.response?.data || error.message);
   }
 };
-
 app.get("/run-newsletter", async (req, res) => {
   try {
     await sendTestNewsletter();
@@ -450,9 +457,11 @@ app.get("/run-newsletter", async (req, res) => {
     res.status(500).send("❌ Ошибка при запуске рассылки.");
   }
 });
+
 app.get("/", (req, res) => {
   res.send("Сервер работает. Добро пожаловать в WhatsApp-бота!");
 });
+
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
