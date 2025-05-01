@@ -409,7 +409,7 @@ const sendTestNewsletter = async () => {
     to: recipientPhone,
     type: "template",
     template: {
-      name: "bonus_rassylka", // имя шаблона как указано в Meta
+      name: "bonus_rassylka2", // имя шаблона как указано в Meta
       language: { code: "ru" },
       components: [
         {
